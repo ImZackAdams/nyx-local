@@ -1,6 +1,7 @@
 # nyx-local
 
 **HTML is the transport layer.**  
+
 You're not sending a POST request. **You're sending the entire fucking payment processor.**
 
 Client side compute. All logic lives in JavaScript. The browser executes it.  
@@ -79,3 +80,4 @@ Your browser is the runtime.
 The filesystem is your storage.  
 The blockchain is your settlement layer.  
 We already had distributed computing. We just called it the web.
+
