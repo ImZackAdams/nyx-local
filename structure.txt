@@ -1,0 +1,47 @@
+.
+├── builder
+│   ├── builder.js
+│   ├── index.html
+│   └── styles.css
+├── checkout-template
+│   └── template.html
+├── examples
+│   └── example-checkout.html
+├── .gitignore
+├── LICENSE
+├── README.md
+├── sdk
+│   ├── dist
+│   │   ├── nyxpay-pay-sdk.umd.js
+│   │   ├── nyxpay-pay-sdk.umd.js.LICENSE.txt
+│   │   └── nyxpay-pay-sdk.umd.js.map
+│   ├── .env
+│   ├── examples
+│   │   └── checkout
+│   │       ├── app.js
+│   │       ├── .gitignore
+│   │       ├── index.html
+│   │       ├── nyxpay-pay-sdk.umd.js
+│   │       ├── styles.css
+│   │       └── .vercel
+│   │           ├── project.json
+│   │           └── README.txt
+│   ├── .gitignore
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── README.md
+│   ├── src
+│   │   ├── core
+│   │   │   └── PaymentProcessor.js
+│   │   ├── index.js
+│   │   ├── token
+│   │   │   └── TokenRegistry.js
+│   │   ├── utils
+│   │   │   ├── transaction.js
+│   │   │   └── validation.js
+│   │   └── wallet
+│   │       └── PhantomAdapter.js
+│   └── webpack.config.js
+└── structure.txt
+
+14 directories, 31 files

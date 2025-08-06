@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>nyx-local</title>
+</head>
+<body>
+  <h1>nyx-local builder</h1>
+  <form id="form">
+    <input id="recipient" placeholder="Recipient address" required><br><br>
+    <input id="amount" type="number" placeholder="0.1" required><br><br>
+    <select id="token">
+      <option value="SOL">SOL</option>
+      <option value="USDC">USDC</option>
+    </select><br><br>
+    <input id="memo" placeholder="Memo (optional)"><br><br>
+    <select id="network">
+      <option value="devnet">Devnet</option>
+      <option value="mainnet">Mainnet</option>
+    </select><br><br>
+    <button type="submit">Generate Payment Terminal</button>
+  </form>
+  <div id="output" style="display:none;">
+    <h3>Generated!</h3>
+    <a id="download">Download Payment Terminal</a>
+  </div>
+  <script>
+    let sdkCode = '';
+    // Load SDK
+    fetch('./sdk/dist/nyxpay-pay-sdk.umd.js')
+      .then(r => r.text())
+      .then(code => { 
+        sdkCode = code; 
+        console.log('SDK loaded');
+      });
+    form.onsubmit = e => {
+      e.preventDefault();
+      if (!sdkCode) {
+        alert('SDK not loaded yet');
+        return;
+      }
+      const recipientVal = recipient.value;
+      const amountVal = amount.value;
+      const tokenVal = token.value;
+      const memoVal = memo.value;
+      const networkVal = network.value;
+      const rpcEndpoint = networkVal === 'mainnet'
+        ? 'https://api.mainnet-beta.solana.com'
+        : 'https://api.devnet.solana.com';
+      // Template literal for the generated HTML file
+      const html = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Pay ${amountVal} ${tokenVal}</title>
+</head>
+<body>
+  <h1>Pay ${amountVal} ${tokenVal}</h1>
+  <p>To: ${recipientVal}</p>
+  ${memoVal ? `<p>Memo: ${memoVal}</p>` : ''}
+  <button onclick="pay()">Connect Wallet & Pay</button>
+  <div id="status"></div>
+  <script>
+    ${sdkCode}
+    async function pay() {
+      try {
+        document.getElementById("status").textContent = "Connecting...";
+        const processor = new PaymentProcessor({
+          network: "${networkVal}",
+          rpcEndpoint: "${rpcEndpoint}"
+        });
+        await processor.init();
+        const phantomAdapter = new PhantomAdapter();
+        processor.setWalletAdapter(phantomAdapter);
+        await processor.connectWallet();
+        document.getElementById("status").textContent = "Processing...";
+        const result = await processor.sendTokens({
+          recipient: "${recipientVal}",
+          amount: ${amountVal},
+          tokenMint: "${tokenVal}"
+        });
+        document.getElementById("status").innerHTML = "Success! <a href='" + result.explorerUrl + "' target='_blank'>View TX</a>";
+      } catch (error) {
+        document.getElementById("status").textContent = "Error: " + (error.message || error);
+      }
+    }
+  <\/script>
+</body>
+</html>`;
+      const blob = new Blob([html], {type: 'text/html'});
+      const url = URL.createObjectURL(blob);
+      download.href = url;
+      download.download = `payment-${token.value}-${amount.value}.html`;
+      output.style.display = 'block';
+    };
+  </script>
+</body>
+</html>
