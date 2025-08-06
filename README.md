@@ -52,7 +52,7 @@ Decentralized via filesystem because your computer already knows how to store fi
 
 ## Why
 
-Because crypto was supposed to be p2p electronic cash and somehow we ended up needing accounts and APIs and third party services just to send money.
+Because crypto was supposed to be p2p electronic cash and somehow we ended up needing accounts and APIs and third party services just to send and receive money.
 
 Because "decentralized" should not mean "please connect to our centralized infrastructure."  
 Because permissionless should actually be permissionless, not "create an account first."  
@@ -79,6 +79,7 @@ Your browser is the runtime.
 The filesystem is your storage.  
 The blockchain is your settlement layer.  
 We already had distributed computing. We just called it the web.
+
 
 
 
