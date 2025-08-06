@@ -1,0 +1,212 @@
+/* NyxPay Checkout - Night Goddess Theme */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: radial-gradient(ellipse at top, #0a0018 0%, #000 100%);
+  color: #f0e6ff;
+  font-family: 'Segoe UI', Roboto, sans-serif;
+  margin: 0;
+  padding: 20px;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Main container */
+.checkout-container {
+  background: rgba(24, 0, 40, 0.9);
+  border: 1px solid #8f00ff33;
+  box-shadow: 0 0 40px rgba(175, 0, 255, 0.4);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 480px;
+  width: 100%;
+}
+
+/* Header */
+.checkout-header h1 {
+  font-size: 28px;
+  color: #dcb3ff;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-shadow: 0 0 4px #b342ff;
+}
+
+.checkout-header .subtitle {
+  font-size: 16px;
+  color: #aa88cc;
+  margin: 0;
+}
+
+/* Payment section */
+.payment-details {
+  background: #150024;
+  border: 1px solid #360052;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 24px 0;
+}
+
+.payment-amount {
+  font-size: 36px;
+  font-weight: 800;
+  color: #ff6bfa;
+  text-shadow: 0 0 4px #ff6bfa;
+  margin: 0 0 10px;
+}
+
+.payment-label {
+  font-size: 18px;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.payment-recipient {
+  font-size: 14px;
+  color: #b78eff;
+}
+
+.payment-recipient .address {
+  display: inline-block;
+  background: #230034;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-family: monospace;
+  color: #e8d0ff;
+}
+
+/* Wallet Info */
+.wallet-info, .wallet-address, .wallet-balance {
+  background: #1a001f;
+  color: #dcb3ff;
+  border: 1px solid #3a005a;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 14px;
+  margin-top: 16px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: bold;
+  text-align: center;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+  min-width: 160px;
+  margin: 8px 0;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #b300ff, #ff00d0);
+  color: #fff;
+  box-shadow: 0 0 12px #ff00e0a0;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #9900cc, #e600aa);
+  transform: scale(1.02);
+  box-shadow: 0 0 20px #ff00f5c2;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: #f0e6ff;
+  border: 1px solid #8f00ff66;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #1c002f;
+  border-color: #c366ff;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Status messages */
+.status {
+  font-size: 14px;
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 16px;
+  font-weight: bold;
+}
+
+.status.info {
+  background: rgba(70, 0, 130, 0.2);
+  border: 1px solid #8a2be2;
+  color: #c8a4ff;
+}
+
+.status.success {
+  background: rgba(0, 255, 136, 0.08);
+  border: 1px solid #00ffb3;
+  color: #85ffd1;
+}
+
+.status.error {
+  background: rgba(255, 0, 77, 0.1);
+  border: 1px solid #ff0073;
+  color: #ff99c8;
+}
+
+/* Spinner */
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #440066;
+  border-top-color: #d53fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 16px auto;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Transaction Link */
+.transaction-link {
+  color: #ff9dff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.transaction-link:hover {
+  text-decoration: underline;
+  color: #ffc8ff;
+}
+
+/* Misc */
+.hidden {
+  display: none !important;
+}
+
+@media (max-width: 480px) {
+  .checkout-container {
+    padding: 20px;
+  }
+
+  .payment-amount {
+    font-size: 28px;
+  }
+
+  .btn {
+    font-size: 15px;
+    padding: 12px 20px;
+  }
+}

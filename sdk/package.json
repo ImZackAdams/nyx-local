@@ -1,0 +1,56 @@
+{
+  "name": "@nyxstack/nyxpay-sdk",
+  "version": "1.0.0",
+  "description": "A lightweight JavaScript SDK for Solana-based token payments using NyxPay",
+  "keywords": [
+    "nyxpay",
+    "solana",
+    "payments",
+    "sdk",
+    "spl-token",
+    "phantom",
+    "nyxstack"
+  ],
+  "author": "Zack Adams <imZackAdams@protonmail.com>",
+  "license": "MIT",
+  "main": "dist/nyxpay-sdk.umd.js",
+  "module": "dist/nyxpay-sdk.esm.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "webpack --mode=production",
+    "build:dev": "webpack --mode=development",
+    "dev": "webpack --mode=development --watch",
+    "serve": "node server.js",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zackadams/nyxpay-sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/zackadams/nyxpay-sdk/issues"
+  },
+  "homepage": "https://github.com/zackadams/nyxpay-sdk#readme",
+  "dependencies": {
+    "@solana/web3.js": "^1.98.0",
+    "bn.js": "^5.2.1",
+    "buffer": "^6.0.3",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.10",
+    "@babel/preset-env": "^7.26.9",
+    "babel-loader": "^10.0.0",
+    "webpack": "^5.98.0",
+    "webpack-cli": "^6.0.1"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/nyxpay-sdk.esm.js",
+      "require": "./dist/nyxpay-sdk.umd.js"
+    }
+  }
+}

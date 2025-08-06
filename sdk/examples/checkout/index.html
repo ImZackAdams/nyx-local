@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NyxPay Checkout</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <div class="container">
+    <h1>🌑 NyxPay Checkout</h1>
+
+    <div class="payment-details">
+      <div class="payment-amount" id="paymentAmount">--</div>
+      <div class="payment-label" id="paymentLabel">--</div>
+      <div class="payment-recipient">
+        <span class="label">Recipient</span>
+        <span class="address" id="recipientAddress">--</span>
+      </div>
+    </div>
+
+    <div class="wallet-section">
+      <button id="connectWallet" class="btn btn-secondary btn-block">Connect Wallet</button>
+      <div id="walletInfo" class="wallet-address mt-2">Not connected</div>
+      <div id="balanceInfo" class="wallet-balance mb-3">Balance: --</div>
+    </div>
+
+    <button id="payButton" class="btn btn-primary btn-block" disabled>Pay Now</button>
+
+    <div id="loadingSpinner" class="loading-spinner hidden"></div>
+    <div id="statusMessage" class="status hidden mt-3"></div>
+  </div>
+
+  <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.js"></script>
+  <script src="nyxpay-pay-sdk.umd.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
