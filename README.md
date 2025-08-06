@@ -57,8 +57,8 @@ Because crypto was supposed to be p2p electronic cash and somehow we ended up ne
 Because "decentralized" should not mean "please connect to our centralized infrastructure."  
 Because permissionless should actually be permissionless, not "create an account first."  
 Because we already had everything we needed to build this. We just forgot.  
-Because the simplest thing that works is usually the right thing.
-Because WHY do you need to pay a middleman 3%?
+Because the simplest thing that works is usually the right thing.  
+Because WHY do you need to pay a middleman 3%?.
 
 ---
 
@@ -80,4 +80,5 @@ Your browser is the runtime.
 The filesystem is your storage.  
 The blockchain is your settlement layer.  
 We already had distributed computing. We just called it the web.
+
 
