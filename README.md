@@ -75,10 +75,11 @@ No frameworks. No dependencies. No build system. No server.
 Connects directly to the blockchain for transaction broadcasting.  
 View source to understand it. Fork it. Modify it. Make it better. Make it Worse.
 
-Your browser is the runtime.  
+The browser is the runtime.  
 The filesystem is your storage.  
-The blockchain is your settlement layer.  
+The blockchain is your server.  
 We already had distributed computing. We just called it the web.
+
 
 
 
