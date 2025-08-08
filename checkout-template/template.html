@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NyxPay Checkout – {{LABEL}}</title>
+  <style>
+    body { font-family: sans-serif; background: #0a0a0a; color: #f5f5f5; text-align: center; padding: 2rem; }
+    .container { max-width: 500px; margin: auto; background: #161616; padding: 30px; border-radius: 10px; }
+    .btn { background: #FEB02E; color: black; padding: 10px 16px; font-weight: bold; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌑 NyxPay Checkout</h1>
+    <p><strong>{{LABEL}}</strong></p>
+    <p>Amount: <strong>{{AMOUNT}} SOL</strong></p>
+    <p>To: <code>{{RECIPIENT}}</code></p>
+    <button id="connectWallet" class="btn">Connect Wallet</button>
+    <button id="payButton" class="btn" disabled>Pay Now</button>
+    <div id="statusMessage">Waiting...</div>
+  </div>
+
+  <script>
+    {{WEB3_LIB}}
+  </script>
+  <script>
+    {{NYXPAY_SDK}}
+  </script>
+  <script>
+    (() => {
+      const recipient = "{{RECIPIENT}}";
+      const amount = {{AMOUNT}};
+      const tokenMint = "SOL";
+      const label = "{{LABEL}}";
+
+      const payBtn = document.getElementById('payButton');
+      const connectBtn = document.getElementById('connectWallet');
+      const status = document.getElementById('statusMessage');
+
+      const sdkGlobal = window.nyxpayPaySDK || window.NyxPaySDK;
+      const { PaymentProcessor, PhantomAdapter } = sdkGlobal;
+      const sdk = new PaymentProcessor({ network: 'mainnet-beta', commitment: 'confirmed' });
+      sdk.setWalletAdapter(new PhantomAdapter());
+
+      (async () => { try { await sdk.init(); } catch (e) { status.textContent = e.message; } })();
+
+      connectBtn.addEventListener('click', async () => {
+        try {
+          await sdk.connectWallet();
+          payBtn.disabled = false;
+          status.textContent = 'Wallet connected. Ready to pay.';
+        } catch (err) {
+          status.textContent = 'Failed to connect wallet: ' + err.message;
+        }
+      });
+
+      payBtn.addEventListener('click', async () => {
+        status.textContent = 'Sending payment...';
+        try {
+          const result = await sdk.sendTokens({ recipient, amount, tokenMint });
+          status.innerHTML = '✅ Payment sent!<br><a href="' + result.explorerUrl + '" target="_blank">View</a>';
+          payBtn.disabled = true;
+        } catch (err) {
+          status.textContent = '❌ Payment failed: ' + err.message;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
