@@ -1,54 +1,31 @@
 // webpack.config.js
-
 const path = require('path');
 const webpack = require('webpack');
 
 module.exports = {
-  // Entry point for your SDK
   entry: './src/index.js',
 
-  // Output configuration
   output: {
-    // Directory to emit bundled files
     path: path.resolve(__dirname, 'dist'),
-
-    // UMD bundle for browsers and Node
     filename: 'nyxpay-pay-sdk.umd.js',
-
-    // Name of the global variable when included via <script>
     library: 'nyxpayPaySDK',
-
-    // Export in UMD format (AMD, CommonJS, global)
     libraryTarget: 'umd',
-
-    // Ensures the globalObject is correct in different environments
     globalObject: 'this',
-
-    // Name the AMD module (optional, but conventional)
     umdNamedDefine: true
   },
 
-  // Production mode for optimizations; use 'development' for faster builds
   mode: 'production',
-
-  // Generate source maps for debugging
   devtool: 'source-map',
 
   module: {
     rules: [
       {
-        // Transpile JS with Babel
         test: /\.js$/,
         exclude: /node_modules/,
         use: {
           loader: 'babel-loader',
           options: {
-            presets: [
-              ['@babel/preset-env', {
-                // Targets can be customized as needed
-                targets: "> 0.25%, not dead"
-              }]
-            ]
+            presets: [['@babel/preset-env', { targets: '> 0.25%, not dead' }]]
           }
         }
       }
@@ -56,25 +33,40 @@ module.exports = {
   },
 
   resolve: {
-    // Allow omitting extensions when importing
     extensions: ['.js'],
-
-    // Fallbacks for Node built-ins (e.g., Buffer)
+    // Prevent Node-only modules from being pulled in by transitive deps
+    // We don't want heavy polyfills for offline browser bundle.
     fallback: {
-      buffer: require.resolve('buffer/')
+      buffer: require.resolve('buffer/'),
+      crypto: false,
+      stream: false,
+      http: false,
+      https: false,
+      zlib: false,
+      url: false,
+      os: false,
+      path: false,
+      fs: false,
+      net: false,
+      tls: false
     }
   },
 
   plugins: [
-    // Provide Buffer automatically without import
+    // Provide Buffer globally if anything expects it
     new webpack.ProvidePlugin({
       Buffer: ['buffer', 'Buffer']
+    }),
+    // Keep "process" references from dragging in Node polyfills
+    new webpack.DefinePlugin({
+      'process.env.NODE_DEBUG': JSON.stringify(''),
+      'process.browser': JSON.stringify(true)
     })
   ],
 
-  // Don't bundle these dependencies; expect them as externals
-  externals: {
-    '@solana/web3.js': 'solanaWeb3',
-    'bn.js': 'BN'
-  }
-};
+
+// webpack.config.js
+externals: {
+  '@solana/web3.js': 'solanaWeb3'   // keep web3 external
+  // NOTE: do NOT list 'bn.js' here (we want BN bundled)
+}}

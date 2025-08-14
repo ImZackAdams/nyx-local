@@ -1,0 +1,79 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>NyxPay Invoice</title>
+<style>
+  body{margin:0;background:#0a0a0a;color:#f5f5f5;font:16px/1.45 system-ui,Segoe UI,Roboto,sans-serif;padding:24px;text-align:center}
+  .card{max-width:640px;margin:0 auto;background:#161616;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.45);padding:24px}
+  .btn{background:#FEB02E;color:#000;padding:12px 16px;border-radius:9px;font-weight:800;border:0;cursor:pointer;margin:6px}
+  code{background:#111;border:1px solid #222;padding:6px 8px;border-radius:8px;word-break:break-all}
+</style>
+</head><body>
+<div class="card">
+  <h1>NyxPay Invoice</h1>
+  <p id="details"></p>
+  <p>Pay to: <code id="recipient"></code></p>
+  <div>
+    <button id="connect" class="btn">Connect Wallet</button>
+    <button id="pay" class="btn" disabled>Pay Now</button>
+    <a id="explorer" class="btn" href="#" target="_blank" rel="noopener" style="display:none">View on Explorer</a>
+  </div>
+  <p id="status">Waiting…</p>
+</div>
+
+<!-- local libs (keep these files next to this HTML) -->
+<script src="./solana-web3.iife.js"></script>
+<script src="./nyxpay-pay-sdk.umd.js"></script>
+<script>
+// --- CONFIG --- edit these three values:
+const NETWORK   = "devnet";                  // or "mainnet-beta"
+const RECIPIENT = "YourRecipientPublicKey";  // <-- put your address here
+const AMOUNT    = 0.25;                      // SOL
+
+// --- UI ---
+document.getElementById('details').textContent = `Amount: ${AMOUNT} SOL • Network: ${NETWORK}`;
+document.getElementById('recipient').textContent = RECIPIENT;
+
+// --- Bootstrap SDK (browser extension flow) ---
+const statusEl   = document.getElementById('status');
+const connectBtn = document.getElementById('connect');
+const payBtn     = document.getElementById('pay');
+const explorer   = document.getElementById('explorer');
+
+(function () {
+  if (!window.solanaWeb3) { statusEl.textContent = 'solanaWeb3 missing (check solana-web3.iife.js)'; return; }
+  const SDK = window.nyxpayPaySDK || window.NyxPaySDK || window.nyxpay || window.NyxPay || null;
+  if (!SDK) { statusEl.textContent = 'NyxPay SDK missing (check nyxpay-pay-sdk.umd.js)'; return; }
+
+  const { PaymentProcessor, PhantomAdapter } = SDK;
+  const sdk = new PaymentProcessor({ network: NETWORK, commitment: 'confirmed' });
+  sdk.setWalletAdapter(new PhantomAdapter());
+
+  connectBtn.onclick = async () => {
+    try {
+      statusEl.textContent = 'Connecting wallet…';
+      await sdk.init();
+      await sdk.connectWallet();
+      payBtn.disabled = false;
+      statusEl.textContent = 'Wallet connected. Ready to pay.';
+    } catch (e) {
+      statusEl.textContent = 'Failed to connect wallet: ' + (e && e.message ? e.message : e);
+    }
+  };
+
+  payBtn.onclick = async () => {
+    try {
+      payBtn.disabled = true;
+      statusEl.textContent = 'Sending payment…';
+      const res = await sdk.sendTokens({ recipient: RECIPIENT, amount: AMOUNT, tokenMint: 'SOL', memo: 'Invoice' });
+      const url = (res && res.explorerUrl) ? res.explorerUrl : '#';
+      explorer.href = url;
+      explorer.style.display = 'inline-block';
+      statusEl.textContent = '✅ Payment sent!';
+    } catch (e) {
+      statusEl.textContent = '❌ Payment failed: ' + (e && e.message ? e.message : e);
+      payBtn.disabled = false;
+    }
+  };
+})();
+</script>
+</body></html>

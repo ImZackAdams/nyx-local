@@ -1,209 +1,177 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>NyxPay – Static Checkout Generator</title>
-  <style>
-    body { font-family: sans-serif; background: #0a0a0a; color: #f5f5f5; padding: 2rem; text-align: center; }
-    .container { max-width: 520px; margin: 0 auto; background: #161616; padding: 30px; border-radius: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.4); }
-    .btn { background: #FEB02E; color: #000; padding: 10px 16px; font-weight: 700; border-radius: 8px; display: inline-block; margin-top: 1rem; text-decoration: none; }
-    .hidden { display: none; }
-    label { display: block; margin-top: 1rem; text-align: left; }
-    input { width: 100%; padding: 0.6rem; margin-top: 0.5rem; border-radius: 6px; border: none; }
-    button { margin-top: 1.5rem; padding: 0.8rem 1.4rem; background: #FEB02E; color: #000; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; }
-    small { opacity: .8; }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>NyxPay Invoice</title>
+<style>
+  :root{--bg:#0a0a0a;--panel:#161616;--text:#f5f5f5;--muted:#bdbdbd;--accent:#FEB02E}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,Segoe UI,Roboto,sans-serif;padding:24px}
+  .sheet{max-width:760px;margin:0 auto;background:var(--panel);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.45);overflow:hidden}
+  header,footer{padding:20px 24px} header{display:flex;gap:16px;align-items:center;border-bottom:1px solid #222}
+  .logo{width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#FFD86F,#FEB02E)}
+  h1{margin:0;font-size:18px}.muted{color:var(--muted)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:20px 24px;border-bottom:1px solid #222}
+  .card{background:#111;border:1px solid #222;border-radius:10px;padding:14px}
+  .label{font-size:12px;letter-spacing:.04em;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+  table{width:100%;border-collapse:collapse} th,td{padding:10px;border-bottom:1px solid #222;text-align:left}
+  tfoot td{border-top:2px solid #333;font-weight:700}.total{font-size:18px}
+  .btn{display:inline-block;background:var(--accent);color:#000;padding:12px 16px;border-radius:9px;font-weight:800;text-decoration:none;margin-top:10px;cursor:pointer;border:0}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  code{background:#111;border:1px solid #222;padding:6px 8px;border-radius:8px;word-break:break-all}
+  .actions{padding:20px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .note{padding:0 24px 20px;color:var(--muted);font-size:14px}
+  .warn{background:#2a1f00;border:1px solid #4d3a00;color:#ffd571;padding:10px 12px;border-radius:8px;margin:16px 24px}
+</style>
 </head>
 <body>
-  <div class="container">
-    <h1>NyxPay Link Builder</h1>
-    <p>Generate a simple checkout file you can send to anyone.</p>
-
-    <form id="builderForm">
-      <label for="label">Item Name or Memo</label>
-      <input type="text" id="label" placeholder="Consulting Services" required />
-
-      <label for="amount">Amount in SOL</label>
-      <input type="number" id="amount" placeholder="0.25" required min="0.000000001" step="0.000000001"/>
-
-      <label for="recipient">Recipient Wallet Address</label>
-      <input type="text" id="recipient" placeholder="Your Solana wallet address" required />
-
-      <button type="submit">Generate Checkout File</button>
-    </form>
-
-    <div id="output" class="hidden">
-      <h2>✅ Download Your File</h2>
-      <a id="downloadLink" class="btn" download>Download Checkout</a><br />
-      <small>We also auto-started the download.</small>
+<div class="sheet">
+  <header>
+    <div class="logo" aria-hidden="true"></div>
+    <div>
+      <h1 id="title">Invoice</h1>
+      <div class="muted" id="subtitle"></div>
     </div>
+  </header>
+
+  <div id="runtimeWarn" class="warn" style="display:none"></div>
+
+  <div class="grid">
+    <div class="card"><div class="label">From</div><div id="from"></div></div>
+    <div class="card"><div class="label">Bill To</div><div id="to"></div></div>
+    <div class="card"><div class="label">Invoice Details</div><div id="meta"></div></div>
+    <div class="card"><div class="label">Pay To (SOL)</div><div><div class="muted" style="font-size:12px">Recipient</div><code id="recipient"></code></div></div>
   </div>
 
-  <!-- =========================
-       Inline library buckets
-       ========================= -->
+  <div style="padding:12px 24px 0">
+    <table id="items">
+      <thead><tr><th>Description</th><th style="width:120px">Qty</th><th style="width:160px">Unit (SOL)</th><th style="width:160px">Line (SOL)</th></tr></thead>
+      <tbody></tbody>
+      <tfoot>
+        <tr><td colspan="3" style="text-align:right">Subtotal</td><td id="subtotal">0</td></tr>
+        <tr><td colspan="3" style="text-align:right">Fees/Adj.</td><td id="fees">0</td></tr>
+        <tr><td colspan="3" class="total" style="text-align:right">Total (SOL)</td><td class="total" id="total">0</td></tr>
+      </tfoot>
+    </table>
+  </div>
 
-  <!-- 1) BN (UMD) — must define window.BN -->
-  <script id="bn-umd" type="text/plain">
-/*! Paste the FULL contents of bn.js UMD/min build here so it defines window.BN */
-</script>
+  <div class="actions">
+    <button id="connectBtn" class="btn" type="button">Connect Wallet</button>
+    <button id="payBtn"     class="btn" type="button" disabled>Pay Now</button>
+    <a id="explorerLink" class="btn" href="#" target="_blank" rel="noopener" style="display:none">View on Explorer</a>
+  </div>
 
-  <!-- 2) Solana Web3 (IIFE) — must define window.solanaWeb3 -->
-  <script id="solana-web3-iife" type="text/plain">
-/*! Paste the FULL contents of @solana/web3.js IIFE build here so it defines window.solanaWeb3 */
-</script>
+  <div class="note" id="status">Waiting…</div>
+  <footer class="muted" id="footer"></footer>
+</div>
 
-  <!-- 3) NyxPay SDK (UMD) — your built bundle -->
-  <script id="nyxpay-sdk-umd" type="text/plain">
-/*! Paste the FULL contents of sdk/dist/nyxpay-pay-sdk.umd.js here */
-</script>
+<!-- Load local libs (offline) -->
+<script src="./solana-web3.iife.js"></script>
+<script src="./nyxpay-pay-sdk.umd.js"></script>
 
-  <script>
-    (function() {
-      var form = document.getElementById('builderForm');
-      var outputSection = document.getElementById('output');
-      var downloadLink = document.getElementById('downloadLink');
+<script>
+/*** CONFIG — EDIT ME ***/
+const MERCHANT = { name: "Nyx Consulting LLC", email: "billing@nyx.co", website: "https://nyx.co" };
+const CUSTOMER = { name: "User B", email: "userb@example.com" };
+const RECIPIENT = { wallet: "YourRecipientPublicKeyHere" }; // <- set this
+const INVOICE  = {
+  number: "INV-2025-0012",
+  dateISO: "2025-08-13",
+  dueISO: "2025-08-20",
+  feeOrAdjustmentSOL: 0.00,
+  memo: "Consulting Services – July",
+  network: "mainnet-beta" // or "devnet"
+};
+const ITEMS = [
+  { desc: "Consulting - Strategy Session", qty: 2, unitSOL: 0.35 },
+  { desc: "Follow-up Report",              qty: 1, unitSOL: 0.10 }
+];
+/*** END CONFIG ***/
 
-      // ---------- helpers ----------
-      function escapeHtml(s) {
-        return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-      }
-      function slugify(s) {
-        return String(s).trim().toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9\-]/g,"");
-      }
-      function escapeForScriptTag(s) {
-        // prevent prematurely closing the inlined <script>
-        return String(s).replace(/<\/script>/gi, '<\\/script>');
-      }
-      function getInlineLib(id) {
-        var el = document.getElementById(id);
-        if (!el) throw new Error('Missing inline library tag: #' + id);
-        return escapeForScriptTag(el.textContent || "");
-      }
-      function looksLikeSolanaAddress(s) {
-        return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
-      }
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const fmt = n => (Math.round(Number(n) * 1e9) / 1e9).toFixed(9).replace(/0+$/,'').replace(/\.$/,'');
+const isAddr = s => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
 
-      // ---------- generator ----------
-      function buildCheckout(recipient, amount, label) {
-        var safeLabel = escapeHtml(label);
-        var safeRecipient = escapeHtml(recipient);
-        var amtStr = String(amount);
+// Render static bits
+document.getElementById("title").textContent = `Invoice ${INVOICE.number}`;
+document.getElementById("subtitle").textContent = `${MERCHANT.name} • ${INVOICE.dateISO} • Due ${INVOICE.dueISO}`;
+document.getElementById("from").innerHTML = `<div>${esc(MERCHANT.name)}</div><div class="muted">${esc(MERCHANT.email)}</div><div class="muted">${esc(MERCHANT.website)}</div>`;
+document.getElementById("to").innerHTML   = `<div>${esc(CUSTOMER.name)}</div><div class="muted">${esc(CUSTOMER.email)}</div>`;
+document.getElementById("meta").innerHTML = `<div><strong>Number:</strong> ${esc(INVOICE.number)}</div><div><strong>Date:</strong> ${esc(INVOICE.dateISO)}</div><div><strong>Due:</strong> ${esc(INVOICE.dueISO)}</div>`;
+document.getElementById("recipient").textContent = RECIPIENT.wallet;
+document.getElementById("footer").textContent = `© ${new Date().getFullYear()} ${MERCHANT.name}`;
 
-        // Pull inlined libs from the builder page (BN -> web3 -> SDK)
-        var bnText   = getInlineLib('bn-umd');
-        var web3Text = getInlineLib('solana-web3-iife');
-        var sdkText  = getInlineLib('nyxpay-sdk-umd');
+// Compute totals
+const subtotal = ITEMS.reduce((s, it) => s + (Number(it.qty)||0)*(Number(it.unitSOL)||0), 0);
+const total = Math.max(0, Math.round((subtotal + Number(INVOICE.feeOrAdjustmentSOL||0)) * 1e9) / 1e9);
 
-        var html = "";
-        html += "<!DOCTYPE html>\n";
-        html += "<html lang=\"en\">\n<head>\n";
-        html += "  <meta charset=\"UTF-8\" />\n";
-        html += "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>\n";
-        html += "  <title>NyxPay Checkout – " + safeLabel + "</title>\n";
-        html += "  <style>\n";
-        html += "    body { font-family: sans-serif; background: #0a0a0a; color: #f5f5f5; padding: 2rem; text-align: center; }\n";
-        html += "    .container { max-width: 520px; margin: 0 auto; background: #161616; padding: 30px; border-radius: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.4); }\n";
-        html += "    .btn { background: #FEB02E; color: #000; padding: 10px 16px; font-weight: 700; border-radius: 8px; display: inline-block; margin-top: 1rem; border: 0; cursor: pointer; text-decoration: none; }\n";
-        html += "    .status { margin-top: 1rem; font-size: 0.95rem; opacity: 0.9; }\n";
-        html += "    code { font-size: 0.9rem; word-break: break-all; }\n";
-        html += "  </style>\n";
-        html += "</head>\n<body>\n";
-        html += "  <div class=\"container\">\n";
-        html += "    <h1>🌑 NyxPay Checkout</h1>\n";
-        html += "    <p><strong>" + safeLabel + "</strong></p>\n";
-        html += "    <p>Amount: <strong>" + amtStr + " SOL</strong></p>\n";
-        html += "    <p>To: <code>" + safeRecipient + "</code></p>\n";
-        html += "    <button id=\"connectWallet\" class=\"btn\">Connect Wallet</button>\n";
-        html += "    <button id=\"payButton\" class=\"btn\" disabled>Pay Now</button>\n";
-        html += "    <div class=\"status\" id=\"statusMessage\">Loading...</div>\n";
-        html += "  </div>\n\n";
+// Render table
+const tbody = document.querySelector("#items tbody");
+ITEMS.forEach(it=>{
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td>${esc(it.desc)}</td><td>${esc(it.qty)}</td><td>${fmt(it.unitSOL)}</td><td>${fmt((+it.qty||0)*(+it.unitSOL||0))}</td>`;
+  tbody.appendChild(tr);
+});
+document.getElementById("subtotal").textContent = fmt(subtotal);
+document.getElementById("fees").textContent     = fmt(INVOICE.feeOrAdjustmentSOL || 0);
+document.getElementById("total").textContent    = fmt(total);
 
-        // Inline libs (dependency order matters)
-        html += "  <script>\n" + bnText   + "\n</" + "script>\n";
-        html += "  <script>\n" + web3Text + "\n</" + "script>\n";
-        html += "  <script>\n" + sdkText  + "\n</" + "script>\n";
+// Runtime environment hints
+const warn = document.getElementById('runtimeWarn');
+if (location.protocol === 'file:') {
+  warn.style.display = '';
+  warn.textContent = 'Tip: Wallet extensions may be blocked on file:// pages. Either serve this file at http://localhost/... OR enable "Allow access to file URLs" for your wallet extension in chrome://extensions.';
+}
 
-        // App bootstrap (safe DOM, double-click guard)
-        html += "  <script>\n";
-        html += "    (function(){\n";
-        html += "      var RECIPIENT = " + JSON.stringify(recipient) + ";\n";
-        html += "      var AMOUNT = " + amtStr + ";\n";
-        html += "      var TOKEN = \"SOL\";\n";
-        html += "      var LABEL = " + JSON.stringify(label) + ";\n";
-        html += "      var payBtn = document.getElementById('payButton');\n";
-        html += "      var connectBtn = document.getElementById('connectWallet');\n";
-        html += "      var status = document.getElementById('statusMessage');\n";
-        html += "      if (!window.BN) { status.textContent = 'BN missing'; throw new Error('BN global not found'); }\n";
-        html += "      if (!window.solanaWeb3) { status.textContent = 'solanaWeb3 missing'; throw new Error('solanaWeb3 global not found'); }\n";
-        html += "      var SDK = window.nyxpayPaySDK || window.NyxPaySDK || window.nyxpay || window.NyxPay || null;\n";
-        html += "      if (!SDK) { status.textContent = 'SDK missing'; throw new Error('NyxPay SDK global not found'); }\n";
-        html += "      var PaymentProcessor = SDK.PaymentProcessor;\n";
-        html += "      var PhantomAdapter = SDK.PhantomAdapter;\n";
-        html += "      var sdk = new PaymentProcessor({ network: 'mainnet-beta', commitment: 'confirmed' });\n";
-        html += "      sdk.setWalletAdapter(new PhantomAdapter());\n";
-        html += "      (async function(){ try { await sdk.init(); status.textContent = 'Ready. Connect your wallet.'; } catch(e) { status.textContent = 'Init failed: ' + (e && e.message ? e.message : e); } })();\n";
-        html += "      connectBtn.addEventListener('click', async function(){\n";
-        html += "        try { await sdk.connectWallet(); payBtn.disabled = false; status.textContent = 'Wallet connected. Ready to pay.'; }\n";
-        html += "        catch(err) { status.textContent = 'Failed to connect wallet: ' + (err && err.message ? err.message : err); }\n";
-        html += "      });\n";
-        html += "      payBtn.addEventListener('click', async function(){\n";
-        html += "        if (payBtn.disabled) return;\n";
-        html += "        payBtn.disabled = true;\n";
-        html += "        status.textContent = 'Sending payment...';\n";
-        html += "        try {\n";
-        html += "          var opts = { recipient: RECIPIENT, amount: AMOUNT, tokenMint: TOKEN, memo: LABEL };\n";
-        html += "          var result = await sdk.sendTokens(opts);\n";
-        html += "          var url = (result && result.explorerUrl) ? result.explorerUrl : '#';\n";
-        html += "          status.textContent = '✅ Payment sent!';\n";
-        html += "          var br = document.createElement('br');\n";
-        html += "          var a  = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'View on Explorer';\n";
-        html += "          status.appendChild(br); status.appendChild(a);\n";
-        html += "        } catch (err) {\n";
-        html += "          status.textContent = '❌ Payment failed: ' + (err && err.message ? err.message : err);\n";
-        html += "          payBtn.disabled = false;\n";
-        html += "        }\n";
-        html += "      });\n";
-        html += "    })();\n";
-        html += "  </" + "script>\n";
-        html += "</body>\n</html>\n";
-        return html;
-      }
+// SDK init
+const status = document.getElementById('status');
+const explorerLink = document.getElementById('explorerLink');
+const connectBtn = document.getElementById('connectBtn');
+const payBtn = document.getElementById('payBtn');
 
-      // ---------- submit ----------
-      form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        var label = document.getElementById('label').value.trim();
-        var recipient = document.getElementById('recipient').value.trim();
-        var amount = Number(document.getElementById('amount').value);
+(function boot(){
+  if (!window.solanaWeb3) { status.textContent = 'solanaWeb3 missing (check solana-web3.iife.js)'; return; }
+  const SDK = window.nyxpayPaySDK || window.NyxPaySDK || window.nyxpay || window.NyxPay || null;
+  if (!SDK) { status.textContent = 'NyxPay SDK not found (check nyxpay-pay-sdk.umd.js)'; return; }
 
-        if (!label || !recipient || isNaN(amount) || amount <= 0) {
-          alert('Please enter a valid label, recipient, and amount.');
-          return;
-        }
-        if (!looksLikeSolanaAddress(recipient)) {
-          alert('That does not look like a valid Solana address.');
-          return;
-        }
-        // clamp to 9dp to avoid float artifacts (SOL has 9 decimals)
-        amount = Math.round(amount * 1e9) / 1e9;
+  const { PaymentProcessor, PhantomAdapter } = SDK;
+  const sdk = new PaymentProcessor({ network: INVOICE.network, commitment: 'confirmed' });
+  sdk.setWalletAdapter(new PhantomAdapter());
 
-        var html = buildCheckout(recipient, amount, label);
-        var blob = new Blob([html], { type: 'text/html' });
-        var url = URL.createObjectURL(blob);
-        var filename = "nyxpay-checkout-" + slugify(label) + ".html";
+  connectBtn.onclick = async () => {
+    try {
+      status.textContent = 'Connecting wallet…';
+      await sdk.init();
+      await sdk.connectWallet();
+      payBtn.disabled = false;
+      status.textContent = 'Wallet connected. Ready to pay.';
+    } catch (e) {
+      status.textContent = 'Failed to connect wallet: ' + (e && e.message ? e.message : e);
+    }
+  };
 
-        downloadLink.href = url;
-        downloadLink.download = filename;
-        downloadLink.textContent = "Download " + filename;
-        outputSection.classList.remove('hidden');
-
-        // Auto-start download and clean up
-        downloadLink.click();
-        setTimeout(function(){ URL.revokeObjectURL(url); }, 0);
+  payBtn.onclick = async () => {
+    if (payBtn.disabled) return;
+    if (!isAddr(RECIPIENT.wallet)) { alert('Recipient address looks invalid.'); return; }
+    payBtn.disabled = true;
+    status.textContent = 'Sending payment…';
+    try {
+      const result = await sdk.sendTokens({
+        recipient: RECIPIENT.wallet,
+        amount: total,
+        tokenMint: 'SOL',
+        memo: INVOICE.memo || INVOICE.number
       });
-    })();
-  </script>
+      const url = (result && result.explorerUrl) ? result.explorerUrl : '#';
+      status.textContent = '✅ Payment sent!';
+      explorerLink.href = url;
+      explorerLink.style.display = 'inline-block';
+    } catch (e) {
+      status.textContent = '❌ Payment failed: ' + (e && e.message ? e.message : e);
+      payBtn.disabled = false;
+    }
+  };
+})();
+</script>
 </body>
 </html>
