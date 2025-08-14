@@ -25,7 +25,7 @@
       <input type="text" id="label" placeholder="Consulting Services" required />
 
       <label for="amount">Amount in SOL</label>
-      <input type="number" id="amount" placeholder="0.25" required min="0.000001" step="0.000001"/>
+      <input type="number" id="amount" placeholder="0.25" required min="0.000000001" step="0.000000001"/>
 
       <label for="recipient">Recipient Wallet Address</label>
       <input type="text" id="recipient" placeholder="Your Solana wallet address" required />
@@ -40,32 +40,61 @@
     </div>
   </div>
 
+  <!-- =========================
+       Inline library buckets
+       ========================= -->
+
+  <!-- 1) BN (UMD) — must define window.BN -->
+  <script id="bn-umd" type="text/plain">
+/*! Paste the FULL contents of bn.js UMD/min build here so it defines window.BN */
+</script>
+
+  <!-- 2) Solana Web3 (IIFE) — must define window.solanaWeb3 -->
+  <script id="solana-web3-iife" type="text/plain">
+/*! Paste the FULL contents of @solana/web3.js IIFE build here so it defines window.solanaWeb3 */
+</script>
+
+  <!-- 3) NyxPay SDK (UMD) — your built bundle -->
+  <script id="nyxpay-sdk-umd" type="text/plain">
+/*! Paste the FULL contents of sdk/dist/nyxpay-pay-sdk.umd.js here */
+</script>
+
   <script>
     (function() {
       var form = document.getElementById('builderForm');
       var outputSection = document.getElementById('output');
       var downloadLink = document.getElementById('downloadLink');
 
-      // Pin exact versions. Update SDK_VERSION to your published tag.
-      var WEB3_URL = "https://unpkg.com/@solana/web3.js@1.95.3/lib/index.iife.js";
-      var SDK_URL  = "https://unpkg.com/nyxpay-pay-sdk@0.1.0/dist/nyxpay-pay-sdk.umd.js";
-
+      // ---------- helpers ----------
       function escapeHtml(s) {
-        return String(s)
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;");
+        return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
       }
-
       function slugify(s) {
-        return String(s).trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "");
+        return String(s).trim().toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9\-]/g,"");
+      }
+      function escapeForScriptTag(s) {
+        // prevent prematurely closing the inlined <script>
+        return String(s).replace(/<\/script>/gi, '<\\/script>');
+      }
+      function getInlineLib(id) {
+        var el = document.getElementById(id);
+        if (!el) throw new Error('Missing inline library tag: #' + id);
+        return escapeForScriptTag(el.textContent || "");
+      }
+      function looksLikeSolanaAddress(s) {
+        return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
       }
 
-      // Build the checkout HTML using simple concatenation to avoid nested backticks issues
+      // ---------- generator ----------
       function buildCheckout(recipient, amount, label) {
         var safeLabel = escapeHtml(label);
         var safeRecipient = escapeHtml(recipient);
         var amtStr = String(amount);
+
+        // Pull inlined libs from the builder page (BN -> web3 -> SDK)
+        var bnText   = getInlineLib('bn-umd');
+        var web3Text = getInlineLib('solana-web3-iife');
+        var sdkText  = getInlineLib('nyxpay-sdk-umd');
 
         var html = "";
         html += "<!DOCTYPE html>\n";
@@ -78,7 +107,7 @@
         html += "    .container { max-width: 520px; margin: 0 auto; background: #161616; padding: 30px; border-radius: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.4); }\n";
         html += "    .btn { background: #FEB02E; color: #000; padding: 10px 16px; font-weight: 700; border-radius: 8px; display: inline-block; margin-top: 1rem; border: 0; cursor: pointer; text-decoration: none; }\n";
         html += "    .status { margin-top: 1rem; font-size: 0.95rem; opacity: 0.9; }\n";
-        html += "    code { font-size: 0.9rem; }\n";
+        html += "    code { font-size: 0.9rem; word-break: break-all; }\n";
         html += "  </style>\n";
         html += "</head>\n<body>\n";
         html += "  <div class=\"container\">\n";
@@ -88,10 +117,15 @@
         html += "    <p>To: <code>" + safeRecipient + "</code></p>\n";
         html += "    <button id=\"connectWallet\" class=\"btn\">Connect Wallet</button>\n";
         html += "    <button id=\"payButton\" class=\"btn\" disabled>Pay Now</button>\n";
-        html += "    <div class=\"status\" id=\"statusMessage\">Waiting...</div>\n";
+        html += "    <div class=\"status\" id=\"statusMessage\">Loading...</div>\n";
         html += "  </div>\n\n";
-        html += "  <script src=\"" + WEB3_URL + "\"><" + "/script>\n";
-        html += "  <script src=\"" + SDK_URL  + "\"><" + "/script>\n";
+
+        // Inline libs (dependency order matters)
+        html += "  <script>\n" + bnText   + "\n</" + "script>\n";
+        html += "  <script>\n" + web3Text + "\n</" + "script>\n";
+        html += "  <script>\n" + sdkText  + "\n</" + "script>\n";
+
+        // App bootstrap (safe DOM, double-click guard)
         html += "  <script>\n";
         html += "    (function(){\n";
         html += "      var RECIPIENT = " + JSON.stringify(recipient) + ";\n";
@@ -101,45 +135,59 @@
         html += "      var payBtn = document.getElementById('payButton');\n";
         html += "      var connectBtn = document.getElementById('connectWallet');\n";
         html += "      var status = document.getElementById('statusMessage');\n";
-        html += "      var SDK = window.nyxpayPaySDK || window.NyxPaySDK || window.nyxpay || null;\n";
-        html += "      if (!SDK) { status.textContent = 'SDK failed to load. Check your internet connection.'; throw new Error('NyxPay SDK global not found'); }\n";
+        html += "      if (!window.BN) { status.textContent = 'BN missing'; throw new Error('BN global not found'); }\n";
+        html += "      if (!window.solanaWeb3) { status.textContent = 'solanaWeb3 missing'; throw new Error('solanaWeb3 global not found'); }\n";
+        html += "      var SDK = window.nyxpayPaySDK || window.NyxPaySDK || window.nyxpay || window.NyxPay || null;\n";
+        html += "      if (!SDK) { status.textContent = 'SDK missing'; throw new Error('NyxPay SDK global not found'); }\n";
         html += "      var PaymentProcessor = SDK.PaymentProcessor;\n";
         html += "      var PhantomAdapter = SDK.PhantomAdapter;\n";
         html += "      var sdk = new PaymentProcessor({ network: 'mainnet-beta', commitment: 'confirmed' });\n";
         html += "      sdk.setWalletAdapter(new PhantomAdapter());\n";
-        html += "      (async function(){ try { await sdk.init(); } catch(e) { status.textContent = 'Init failed: ' + (e && e.message ? e.message : e); } })();\n";
+        html += "      (async function(){ try { await sdk.init(); status.textContent = 'Ready. Connect your wallet.'; } catch(e) { status.textContent = 'Init failed: ' + (e && e.message ? e.message : e); } })();\n";
         html += "      connectBtn.addEventListener('click', async function(){\n";
         html += "        try { await sdk.connectWallet(); payBtn.disabled = false; status.textContent = 'Wallet connected. Ready to pay.'; }\n";
         html += "        catch(err) { status.textContent = 'Failed to connect wallet: ' + (err && err.message ? err.message : err); }\n";
         html += "      });\n";
         html += "      payBtn.addEventListener('click', async function(){\n";
+        html += "        if (payBtn.disabled) return;\n";
+        html += "        payBtn.disabled = true;\n";
         html += "        status.textContent = 'Sending payment...';\n";
         html += "        try {\n";
         html += "          var opts = { recipient: RECIPIENT, amount: AMOUNT, tokenMint: TOKEN, memo: LABEL };\n";
         html += "          var result = await sdk.sendTokens(opts);\n";
         html += "          var url = (result && result.explorerUrl) ? result.explorerUrl : '#';\n";
-        html += "          status.innerHTML = '✅ Payment sent!<br><a href=\"' + url + '\" target=\"_blank\" rel=\"noopener\">View on Explorer</a>';\n";
-        html += "          payBtn.disabled = true;\n";
+        html += "          status.textContent = '✅ Payment sent!';\n";
+        html += "          var br = document.createElement('br');\n";
+        html += "          var a  = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'View on Explorer';\n";
+        html += "          status.appendChild(br); status.appendChild(a);\n";
         html += "        } catch (err) {\n";
         html += "          status.textContent = '❌ Payment failed: ' + (err && err.message ? err.message : err);\n";
+        html += "          payBtn.disabled = false;\n";
         html += "        }\n";
         html += "      });\n";
         html += "    })();\n";
-        html += "  <" + "/script>\n";
+        html += "  </" + "script>\n";
         html += "</body>\n</html>\n";
         return html;
       }
 
+      // ---------- submit ----------
       form.addEventListener('submit', function(e) {
         e.preventDefault();
         var label = document.getElementById('label').value.trim();
-        var amount = parseFloat(document.getElementById('amount').value.trim());
         var recipient = document.getElementById('recipient').value.trim();
+        var amount = Number(document.getElementById('amount').value);
 
         if (!label || !recipient || isNaN(amount) || amount <= 0) {
           alert('Please enter a valid label, recipient, and amount.');
           return;
         }
+        if (!looksLikeSolanaAddress(recipient)) {
+          alert('That does not look like a valid Solana address.');
+          return;
+        }
+        // clamp to 9dp to avoid float artifacts (SOL has 9 decimals)
+        amount = Math.round(amount * 1e9) / 1e9;
 
         var html = buildCheckout(recipient, amount, label);
         var blob = new Blob([html], { type: 'text/html' });
@@ -151,8 +199,9 @@
         downloadLink.textContent = "Download " + filename;
         outputSection.classList.remove('hidden');
 
-        // Auto-start download
+        // Auto-start download and clean up
         downloadLink.click();
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 0);
       });
     })();
   </script>
