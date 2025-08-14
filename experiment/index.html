@@ -1,96 +1,723 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>nyx-local</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>NyxMesh • Plain JS Starter (P2P + TASK/RESULT)</title>
+<style>
+  :root { --bg:#0b0b0f; --panel:#16161d; --ink:#eaeaf2; --muted:#a7a7b3; --accent:#9b5cff; }
+  * { box-sizing: border-box; }
+  html,body { height:100%; }
+  body {
+    margin:0; font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: radial-gradient(1200px 600px at 10% 0%, #141421 0%, var(--bg) 60%);
+    color: var(--ink);
+    display:flex; align-items:stretch; justify-content:center; padding:18px;
+  }
+  .wrap { width:100%; max-width:980px; display:grid; grid-template-columns: 330px 1fr; gap:14px; }
+  .card { background:var(--panel); border:1px solid #222231; border-radius:14px; padding:14px; }
+  h1 { margin:0 0 8px 0; font-size:18px; letter-spacing:.3px; }
+  h2 { margin:0 0 10px 0; font-size:15px; color:var(--muted); }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .btn {
+    background:var(--accent); color:#0b0b0f; border:0; padding:8px 12px; border-radius:10px;
+    font-weight:700; cursor:pointer; transition: opacity 0.2s;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.secondary { background:#2a2a38; color:var(--ink); border:1px solid #333349; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  textarea, input, select {
+    width:100%; background:#0f0f16; color:var(--ink); border:1px solid #282838; border-radius:8px; padding:10px;
+  }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .kv { display:flex; justify-content:space-between; border-bottom:1px dashed #2a2a3a; padding:4px 0; }
+  .muted { color:var(--muted); }
+  .log { height:190px; overflow:auto; background:#0e0e15; border:1px solid #242436; border-radius:8px; padding:8px; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#24243a; color:var(--ink); font-size:12px; }
+  .ok { background:#1d3d23; color:#7dff8b; }
+  .warn { background:#3d3d1d; color:#ffe57d; }
+  .bad { background:#3d1d1d; color:#ff7d7d; }
+  .info { background:#1d2d3d; color:#7dcfff; }
+  .status-msg { 
+    margin-top: 10px; padding: 8px; border-radius: 8px; 
+    background: #1a1a24; border: 1px solid #2a2a3a; font-size: 13px;
+  }
+  .highlight { animation: pulse 2s infinite; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+</style>
 </head>
 <body>
-  <h1>nyx-local builder</h1>
-  <form id="form">
-    <input id="recipient" placeholder="Recipient address" required><br><br>
-    <input id="amount" type="number" placeholder="0.1" required><br><br>
-    <select id="token">
-      <option value="SOL">SOL</option>
-      <option value="USDC">USDC</option>
-    </select><br><br>
-    <input id="memo" placeholder="Memo (optional)"><br><br>
-    <select id="network">
-      <option value="devnet">Devnet</option>
-      <option value="mainnet">Mainnet</option>
-    </select><br><br>
-    <button type="submit">Generate Payment Terminal</button>
-  </form>
-  <div id="output" style="display:none;">
-    <h3>Generated!</h3>
-    <a id="download">Download Payment Terminal</a>
+  <div class="wrap">
+    <div class="card">
+      <h1>NyxMesh • Plain JS</h1>
+      <div class="kv"><span>WebRTC</span><span id="cap-rtc" class="pill">…</span></div>
+      <div class="kv"><span>WebGPU</span><span id="cap-gpu" class="pill">…</span></div>
+      <div class="kv"><span>Cores (hint)</span><span id="cap-cores" class="pill">…</span></div>
+      <div class="kv"><span>GPU score (synthetic)</span><span id="cap-gpuscore" class="pill">…</span></div>
+
+      <h2>Role</h2>
+      <div class="row">
+        <label><input type="radio" name="role" value="coordinator" checked /> Coordinator (Creates Offer)</label>
+        <label><input type="radio" name="role" value="worker" /> Worker (Creates Answer)</label>
+      </div>
+      <div id="role-status" class="status-msg" style="display:none;"></div>
+
+      <h2>Resource Offer</h2>
+      <div class="grid">
+        <div><label class="muted">Concurrency
+          <input id="concurrency" type="number" min="1" max="8" value="1" />
+        </label></div>
+        <div><label class="muted">Bandwidth (MB/s)
+          <input id="bw" type="number" min="1" max="100" value="8" />
+        </label></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="btn-offer">Publish Offer</button>
+        <span id="offer-status" class="muted mono">idle</span>
+      </div>
+
+      <h2>Signaling (copy-paste)</h2>
+      <div id="signal-instructions" class="status-msg">
+        <strong>Coordinator:</strong> Click "Create Offer" to start<br>
+        <strong>Worker:</strong> Wait for coordinator's offer first
+      </div>
+      
+      <div class="muted" style="margin:10px 0 6px 0">Your local description:</div>
+      <textarea id="local" rows="6" class="mono" placeholder="Will appear after creating offer/answer" readonly></textarea>
+      <div class="row" style="margin:8px 0;">
+        <button class="btn" id="btn-create">Create Offer/Answer</button>
+        <button class="btn secondary" id="btn-copy">Copy to Clipboard</button>
+        <button class="btn secondary" id="btn-clear-local">Clear</button>
+      </div>
+      
+      <div class="muted" style="margin-bottom:6px">Remote description from peer:</div>
+      <textarea id="remote" rows="6" class="mono" placeholder="Paste remote SDP here"></textarea>
+      <div class="row" style="margin-top:8px;">
+        <button class="btn" id="btn-remote">Set Remote Description</button>
+        <button class="btn secondary" id="btn-clear-remote">Clear</button>
+      </div>
+
+      <h2>Connection Status</h2>
+      <div class="kv"><span>PeerConnection</span><span id="pc-state" class="pill">not created</span></div>
+      <div class="kv"><span>ICE Connection</span><span id="ice-state" class="pill">not created</span></div>
+      <div class="kv"><span>DataChannel</span><span id="dc-state" class="pill">not created</span></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn secondary" id="btn-reset">Reset Connection</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h1>Job Console</h1>
+
+      <div class="row" style="margin-bottom:8px">
+        <button class="btn" id="btn-run" disabled>Run Demo Job (256×256 matmul)</button>
+        <button class="btn secondary" id="btn-pause" disabled>Pause Worker</button>
+        <button class="btn secondary" id="btn-clear-log">Clear Log</button>
+      </div>
+
+      <div class="grid" style="margin-bottom:10px">
+        <div class="card" style="padding:10px">
+          <h2>Outbound</h2>
+          <div class="kv"><span>Tasks sent</span><span id="stat-tasks-sent" class="pill">0</span></div>
+          <div class="kv"><span>Accepted</span><span id="stat-accepted" class="pill">0</span></div>
+        </div>
+        <div class="card" style="padding:10px">
+          <h2>Inbound</h2>
+          <div class="kv"><span>Tasks received</span><span id="stat-tasks-recv" class="pill">0</span></div>
+          <div class="kv"><span>Completed</span><span id="stat-completed" class="pill">0</span></div>
+        </div>
+      </div>
+
+      <h2>Activity Log</h2>
+      <pre id="log" class="log mono"></pre>
+    </div>
   </div>
-  <script>
-    let sdkCode = '';
-    // Load SDK
-    fetch('./sdk/dist/nyxpay-pay-sdk.umd.js')
-      .then(r => r.text())
-      .then(code => { 
-        sdkCode = code; 
-        console.log('SDK loaded');
-      });
-    form.onsubmit = e => {
-      e.preventDefault();
-      if (!sdkCode) {
-        alert('SDK not loaded yet');
+
+<script>
+/* ------------------ utilities ------------------ */
+const $ = sel => document.querySelector(sel);
+const logEl = $("#log");
+
+function log(...args){ 
+  const timestamp = new Date().toLocaleTimeString();
+  const s = `[${timestamp}] ` + args.map(a => typeof a==='string'? a : JSON.stringify(a)).join(' '); 
+  logEl.textContent += s + "\n"; 
+  logEl.scrollTop = logEl.scrollHeight; 
+}
+
+function pill(el, text, cls=""){ 
+  el.textContent = text; 
+  el.className = "pill " + cls; 
+}
+
+function showStatus(msg, isError = false) {
+  const el = $("#role-status");
+  el.textContent = msg;
+  el.style.display = "block";
+  el.style.background = isError ? "#3d1d1d" : "#1a1a24";
+  el.style.color = isError ? "#ff7d7d" : "#7dcfff";
+  setTimeout(() => { el.style.display = "none"; }, 5000);
+}
+
+function updateInstructions() {
+  const inst = $("#signal-instructions");
+  if (role === "coordinator") {
+    inst.innerHTML = "<strong>📡 Coordinator Mode:</strong> Create an offer and share it with the worker";
+  } else {
+    inst.innerHTML = "<strong>⚙️ Worker Mode:</strong> Paste coordinator's offer, set it, then create your answer";
+  }
+}
+
+/* ------------------ capability probe ------------------ */
+const caps = {
+  rtc: !!window.RTCPeerConnection,
+  gpu: !!navigator.gpu,
+  cores: (navigator.hardwareConcurrency || 4),
+  gpuScore: 0
+};
+
+(async function gpuProbe(){
+  caps.gpuScore = (caps.gpu ? caps.cores * 500 : 0);
+  pill($("#cap-rtc"), caps.rtc? "available": "missing", caps.rtc? "ok":"bad");
+  pill($("#cap-gpu"), caps.gpu? "available": "missing", caps.gpu? "ok":"warn");
+  pill($("#cap-cores"), String(caps.cores), "info"); 
+  pill($("#cap-gpuscore"), String(caps.gpuScore), "info");
+  
+  if (!caps.rtc) {
+    showStatus("⚠️ WebRTC not available in this browser!", true);
+  }
+})();
+
+/* ------------------ state management ------------------ */
+let role = "coordinator";
+let pc = null, dc = null;
+let paused = false;
+let connectionReady = false;
+
+const stats = {
+  sent: 0, accepted: 0,
+  recv: 0, completed: 0
+};
+
+function refreshStats(){
+  $("#stat-tasks-sent").textContent = stats.sent;
+  $("#stat-accepted").textContent = stats.accepted;
+  $("#stat-tasks-recv").textContent = stats.recv;
+  $("#stat-completed").textContent = stats.completed;
+}
+
+function resetConnection() {
+  log("Resetting connection...");
+  
+  // Close existing connections
+  if (dc) {
+    dc.close();
+    dc = null;
+  }
+  if (pc) {
+    pc.close();
+    pc = null;
+  }
+  
+  // Clear UI
+  $("#local").value = "";
+  $("#remote").value = "";
+  pill($("#pc-state"), "not created");
+  pill($("#ice-state"), "not created");
+  pill($("#dc-state"), "not created");
+  
+  // Reset buttons
+  $("#btn-run").disabled = true;
+  $("#btn-pause").disabled = true;
+  $("#btn-offer").disabled = true;
+  $("#btn-create").disabled = false;
+  
+  connectionReady = false;
+  paused = false;
+  
+  updateInstructions();
+}
+
+// Role change handler
+document.querySelectorAll("input[name=role]").forEach(r => {
+  r.addEventListener("change", () => {
+    const oldRole = role;
+    role = r.value;
+    log(`Role changed: ${oldRole} → ${role}`);
+    showStatus(`Switched to ${role} mode. Connection reset.`);
+    resetConnection();
+  });
+});
+
+/* ------------------ WebRTC Setup ------------------ */
+function createPeer(){
+  if (pc) {
+    log("Peer connection already exists, resetting...");
+    resetConnection();
+  }
+  
+  log(`Creating peer connection as ${role}...`);
+  
+  pc = new RTCPeerConnection({
+    iceServers: [
+      {urls: "stun:stun.l.google.com:19302"},
+      {urls: "stun:stun1.l.google.com:19302"}
+    ],
+    iceCandidatePoolSize: 10  // Pre-gather candidates
+  });
+  
+  // Connection state handlers with proper coloring
+  pc.onconnectionstatechange = () => {
+    const state = pc.connectionState;
+    let cls = "";
+    if (state === "connected") cls = "ok";
+    else if (state === "failed" || state === "closed") cls = "bad";
+    else if (state === "connecting" || state === "new") cls = "warn";
+    pill($("#pc-state"), state, cls);
+    log(`Connection state: ${state}`);
+  };
+  
+  pc.oniceconnectionstatechange = () => {
+    const state = pc.iceConnectionState;
+    let cls = "";
+    if (state === "connected" || state === "completed") cls = "ok";
+    else if (state === "failed" || state === "disconnected") cls = "bad";
+    else if (state === "checking" || state === "new") cls = "warn";
+    pill($("#ice-state"), state, cls);
+    log(`ICE state: ${state}`);
+    
+    if (state === "failed") {
+      showStatus("⚠️ ICE connection failed. Check firewall/network settings.", true);
+    }
+  };
+  
+  // ICE candidate handler
+  let candidateCount = 0;
+  let gatheringTimeout = null;
+  
+  pc.onicecandidate = (e) => {
+    if (e.candidate) {
+      candidateCount++;
+      const candidateType = e.candidate.type || 'unknown';
+      const protocol = e.candidate.protocol || 'unknown';
+      log(`ICE candidate #${candidateCount}: ${candidateType}/${protocol}`);
+      
+      // Reset timeout on each candidate
+      if (gatheringTimeout) clearTimeout(gatheringTimeout);
+      
+      // Set timeout to complete gathering if no more candidates arrive
+      gatheringTimeout = setTimeout(() => {
+        if (pc.localDescription) {
+          $("#local").value = JSON.stringify(pc.localDescription);
+          log("ICE gathering complete (timeout)");
+        }
+      }, 1000);
+    } else {
+      // Null candidate means gathering is complete
+      if (gatheringTimeout) clearTimeout(gatheringTimeout);
+      $("#local").value = JSON.stringify(pc.localDescription);
+      log("ICE gathering complete (null candidate)");
+    }
+  };
+  
+  pc.onicegatheringstatechange = () => {
+    log(`ICE gathering state: ${pc.iceGatheringState}`);
+    if (pc.iceGatheringState === 'complete') {
+      if (gatheringTimeout) clearTimeout(gatheringTimeout);
+      $("#local").value = JSON.stringify(pc.localDescription);
+      log("ICE gathering complete (state change)");
+    }
+  };
+  
+  // Data channel setup
+  if (role === "coordinator") {
+    log("Creating data channel 'mesh'...");
+    dc = pc.createDataChannel("mesh", {ordered: true});
+    wireDataChannel(dc);
+  } else {
+    pc.ondatachannel = (e) => {
+      log("Data channel received from coordinator");
+      dc = e.channel;
+      wireDataChannel(dc);
+    };
+  }
+  
+  pill($("#pc-state"), "new", "warn");
+  pill($("#ice-state"), "new", "warn");
+}
+
+function wireDataChannel(channel){
+  channel.onopen = () => {
+    pill($("#dc-state"), "open", "ok");
+    log("✅ Data channel open!");
+    connectionReady = true;
+    
+    // Enable controls based on role
+    $("#btn-offer").disabled = false;
+    $("#btn-pause").disabled = false;
+    if (role === "coordinator") {
+      $("#btn-run").disabled = false;
+    }
+    
+    sendHello();
+    showStatus("🎉 Connection established successfully!");
+  };
+  
+  channel.onclose = () => {
+    pill($("#dc-state"), "closed", "bad");
+    log("Data channel closed");
+    connectionReady = false;
+    $("#btn-run").disabled = true;
+    $("#btn-pause").disabled = true;
+    $("#btn-offer").disabled = true;
+  };
+  
+  channel.onerror = (e) => {
+    log("❌ Data channel error:", e.error?.message || "Unknown error");
+    pill($("#dc-state"), "error", "bad");
+    showStatus("Data channel error occurred", true);
+  };
+  
+  channel.onmessage = onMessage;
+  
+  pill($("#dc-state"), "connecting", "warn");
+}
+
+/* ------------------ Signaling ------------------ */
+async function createLocalDesc(){
+  try {
+    if (!pc) createPeer();
+    
+    if (role === "coordinator") {
+      log("Creating offer...");
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      log("Offer created. Gathering ICE candidates...");
+      showStatus("Gathering ICE candidates... This may take a few seconds.");
+      
+      // Fallback: If ICE gathering doesn't complete naturally, force completion after 3 seconds
+      setTimeout(() => {
+        if ($("#local").value === "" && pc.localDescription) {
+          $("#local").value = JSON.stringify(pc.localDescription);
+          log("ICE gathering forced complete (3s timeout)");
+          showStatus("Offer ready! Copy it and send to the worker.");
+        }
+      }, 3000);
+    } else {
+      // Worker: check if remote offer is set
+      if (!pc.remoteDescription) {
+        showStatus("⚠️ Please paste and set the coordinator's offer first!", true);
         return;
       }
-      const recipientVal = recipient.value;
-      const amountVal = amount.value;
-      const tokenVal = token.value;
-      const memoVal = memo.value;
-      const networkVal = network.value;
-      const rpcEndpoint = networkVal === 'mainnet'
-        ? 'https://api.mainnet-beta.solana.com'
-        : 'https://api.devnet.solana.com';
-      // Template literal for the generated HTML file
-      const html = `<!DOCTYPE html>
-<html>
-<head>
-  <title>Pay ${amountVal} ${tokenVal}</title>
-</head>
-<body>
-  <h1>Pay ${amountVal} ${tokenVal}</h1>
-  <p>To: ${recipientVal}</p>
-  ${memoVal ? `<p>Memo: ${memoVal}</p>` : ''}
-  <button onclick="pay()">Connect Wallet & Pay</button>
-  <div id="status"></div>
-  <script>
-    ${sdkCode}
-    async function pay() {
-      try {
-        document.getElementById("status").textContent = "Connecting...";
-        const processor = new PaymentProcessor({
-          network: "${networkVal}",
-          rpcEndpoint: "${rpcEndpoint}"
-        });
-        await processor.init();
-        const phantomAdapter = new PhantomAdapter();
-        processor.setWalletAdapter(phantomAdapter);
-        await processor.connectWallet();
-        document.getElementById("status").textContent = "Processing...";
-        const result = await processor.sendTokens({
-          recipient: "${recipientVal}",
-          amount: ${amountVal},
-          tokenMint: "${tokenVal}"
-        });
-        document.getElementById("status").innerHTML = "Success! <a href='" + result.explorerUrl + "' target='_blank'>View TX</a>";
-      } catch (error) {
-        document.getElementById("status").textContent = "Error: " + (error.message || error);
+      log("Creating answer...");
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      log("Answer created. Gathering ICE candidates...");
+      showStatus("Gathering ICE candidates... This may take a few seconds.");
+      
+      // Fallback for answer too
+      setTimeout(() => {
+        if ($("#local").value === "" && pc.localDescription) {
+          $("#local").value = JSON.stringify(pc.localDescription);
+          log("ICE gathering forced complete (3s timeout)");
+          showStatus("Answer ready! Copy it and send back to coordinator.");
+        }
+      }, 3000);
+    }
+  } catch (e) {
+    log("❌ Error creating local description:", e.message);
+    showStatus(`Error: ${e.message}`, true);
+  }
+}
+
+async function setRemoteDesc(){
+  try {
+    const txt = $("#remote").value.trim();
+    if (!txt) {
+      showStatus("⚠️ Please paste a remote description first!", true);
+      return;
+    }
+    
+    let desc;
+    try {
+      desc = JSON.parse(txt);
+    } catch (e) {
+      showStatus("⚠️ Invalid JSON format. Please check the pasted content.", true);
+      return;
+    }
+    
+    if (!pc) createPeer();
+    
+    log(`Setting remote ${desc.type}...`);
+    await pc.setRemoteDescription(desc);
+    log(`✅ Remote ${desc.type} set successfully`);
+    
+    if (desc.type === "offer" && role === "worker") {
+      showStatus("Offer set! Now click 'Create Offer/Answer' to generate your answer.");
+      $("#btn-create").classList.add("highlight");
+      setTimeout(() => $("#btn-create").classList.remove("highlight"), 3000);
+    } else if (desc.type === "answer" && role === "coordinator") {
+      showStatus("Answer set! Connection should establish shortly...");
+    }
+  } catch (e) {
+    log("❌ Error setting remote description:", e.message);
+    showStatus(`Error: ${e.message}`, true);
+  }
+}
+
+/* ------------------ Button handlers ------------------ */
+$("#btn-create").onclick = createLocalDesc;
+$("#btn-remote").onclick = setRemoteDesc;
+$("#btn-reset").onclick = resetConnection;
+
+$("#btn-copy").onclick = async () => {
+  const text = $("#local").value.trim();
+  if (!text) {
+    showStatus("Nothing to copy yet!", true);
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    showStatus("✅ Copied to clipboard!");
+  } catch (e) {
+    showStatus("Failed to copy. Please select and copy manually.", true);
+  }
+};
+
+$("#btn-clear-local").onclick = () => { $("#local").value = ""; };
+$("#btn-clear-remote").onclick = () => { $("#remote").value = ""; };
+$("#btn-clear-log").onclick = () => { logEl.textContent = ""; log("Log cleared"); };
+
+/* ------------------ Mesh Protocol ------------------ */
+const nodeId = "node_" + Math.random().toString(36).slice(2, 8);
+
+function send(obj){
+  if (dc && dc.readyState === "open") {
+    dc.send(JSON.stringify(obj));
+    return true;
+  }
+  log("⚠️ Cannot send: Data channel not open");
+  return false;
+}
+
+function sendHello(){
+  const hello = {
+    type: "HELLO",
+    node_id: nodeId,
+    role: role,
+    capabilities: {
+      webgpu: caps.gpu,
+      gpu_score: caps.gpuScore,
+      cores: caps.cores
+    }
+  };
+  send(hello);
+  log("HELLO sent:", hello);
+}
+
+$("#btn-offer").onclick = () => {
+  if (!connectionReady) {
+    showStatus("Connection not ready yet!", true);
+    return;
+  }
+  
+  const offer = {
+    type: "RESOURCE_OFFER",
+    node_id: nodeId,
+    limits: {
+      concurrency: Number($("#concurrency").value || 1),
+      bandwidth_mbps: Number($("#bw").value || 8),
+      idle_only: false
+    },
+    score: {
+      gpu: caps.gpuScore,
+      latency_ms: 0,
+      reliability: 1.0
+    }
+  };
+  
+  if (send(offer)) {
+    $("#offer-status").textContent = "sent ✓";
+    log("RESOURCE_OFFER sent:", offer);
+  }
+};
+
+/* ------------------ Job Management ------------------ */
+let jobCounter = 0;
+
+$("#btn-run").onclick = () => {
+  if (!connectionReady || role !== "coordinator") {
+    showStatus("Only coordinator can send tasks!", true);
+    return;
+  }
+  
+  jobCounter++;
+  const task = {
+    type: "TASK",
+    job_id: `job_demo_${jobCounter}`,
+    chunk_id: 1,
+    params: { n: 256 }
+  };
+  
+  if (send(task)) {
+    stats.sent++;
+    refreshStats();
+    log("📤 TASK sent:", task);
+  }
+};
+
+$("#btn-pause").onclick = () => {
+  if (!connectionReady) return;
+  
+  paused = !paused;
+  $("#btn-pause").textContent = paused ? "Resume Worker" : "Pause Worker";
+  send({ type: paused ? "PAUSE" : "RESUME" });
+  log(paused ? "⏸️ Worker paused" : "▶️ Worker resumed");
+};
+
+/* ------------------ Worker Compute Functions ------------------ */
+function matmul(A, B, n){
+  const C = new Float32Array(n * n);
+  for (let i = 0; i < n; i++){
+    for (let k = 0; k < n; k++){
+      const aik = A[i * n + k];
+      for (let j = 0; j < n; j++){
+        C[i * n + j] += aik * B[k * n + j];
       }
     }
-  <\/script>
-</body>
-</html>`;
-      const blob = new Blob([html], {type: 'text/html'});
-      const url = URL.createObjectURL(blob);
-      download.href = url;
-      download.download = `payment-${token.value}-${amount.value}.html`;
-      output.style.display = 'block';
-    };
-  </script>
+  }
+  return C;
+}
+
+function randMat(n){
+  const T = new Float32Array(n * n);
+  for (let i = 0; i < T.length; i++) {
+    T[i] = Math.random() * 2 - 1;
+  }
+  return T;
+}
+
+async function sha256Hex(bytes){
+  const buf = await crypto.subtle.digest("SHA-256", bytes.buffer);
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+/* ------------------ Message Handler ------------------ */
+async function onMessage(ev){
+  try {
+    const msg = JSON.parse(ev.data);
+    
+    switch(msg.type) {
+      case "HELLO":
+        log("📥 HELLO from", msg.node_id, "role:", msg.role || "unknown");
+        break;
+        
+      case "RESOURCE_OFFER":
+        log("📥 RESOURCE_OFFER:", msg);
+        break;
+        
+      case "PAUSE":
+        paused = true;
+        log("⏸️ Received PAUSE command");
+        break;
+        
+      case "RESUME":
+        paused = false;
+        log("▶️ Received RESUME command");
+        break;
+        
+      case "TASK":
+        stats.recv++;
+        refreshStats();
+        log("📥 TASK received:", msg);
+        
+        if (paused) {
+          log("Worker paused, skipping task");
+          send({
+            type: "TASK_REJECTED",
+            job_id: msg.job_id,
+            chunk_id: msg.chunk_id,
+            reason: "worker_paused"
+          });
+          break;
+        }
+        
+        // Execute task
+        const n = (msg.params && msg.params.n) || 256;
+        log(`Computing ${n}×${n} matrix multiplication...`);
+        
+        const A = randMat(n);
+        const B = randMat(n);
+        const t0 = performance.now();
+        const C = matmul(A, B, n);
+        const t1 = performance.now();
+        const duration = Math.round(t1 - t0);
+        
+        const hash = await sha256Hex(new Uint8Array(C.buffer));
+        
+        const result = {
+          type: "RESULT",
+          job_id: msg.job_id,
+          chunk_id: msg.chunk_id,
+          output_hash: "sha256:" + hash,
+          perf: {
+            ms: duration,
+            n: n,
+            gflops: (2 * Math.pow(n, 3) / (duration * 1e6)).toFixed(3)
+          }
+        };
+        
+        send(result);
+        stats.completed++;
+        refreshStats();
+        log("📤 RESULT sent:", result);
+        break;
+        
+      case "RESULT":
+        stats.accepted++;
+        refreshStats();
+        log("📥 RESULT received:", msg);
+        log(`Performance: ${msg.perf.ms}ms, ${msg.perf.gflops} GFLOPS`);
+        
+        // Auto-accept in this demo
+        send({
+          type: "ACCEPT",
+          job_id: msg.job_id,
+          chunk_id: msg.chunk_id
+        });
+        log("✅ ACCEPT sent");
+        break;
+        
+      case "ACCEPT":
+        log("✅ ACCEPT received for", msg.job_id);
+        break;
+        
+      case "TASK_REJECTED":
+        log("❌ Task rejected:", msg.reason);
+        break;
+        
+      default:
+        log("❓ Unknown message type:", msg);
+    }
+  } catch(e) {
+    log("❌ Error processing message:", e.message);
+  }
+}
+
+/* ------------------ Cleanup on page unload ------------------ */
+window.addEventListener('beforeunload', () => {
+  if (dc) dc.close();
+  if (pc) pc.close();
+});
+
+/* ------------------ Initialize ------------------ */
+log("NyxMesh P2P initialized");
+log(`Node ID: ${nodeId}`);
+updateInstructions();
+
+</script>
 </body>
 </html>
