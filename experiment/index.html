@@ -3,9 +3,12 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>NyxMesh • Plain JS Starter (P2P + TASK/RESULT)</title>
+<title>NyxMesh • Enhanced P2P Distributed Computing</title>
 <style>
-  :root { --bg:#0b0b0f; --panel:#16161d; --ink:#eaeaf2; --muted:#a7a7b3; --accent:#9b5cff; }
+  :root { 
+    --bg:#0b0b0f; --panel:#16161d; --ink:#eaeaf2; --muted:#a7a7b3; 
+    --accent:#9b5cff; --accent-hover:#b47dff; --success:#7dff8b; --danger:#ff7d7d;
+  }
   * { box-sizing: border-box; }
   html,body { height:100%; }
   body {
@@ -14,26 +17,34 @@
     color: var(--ink);
     display:flex; align-items:stretch; justify-content:center; padding:18px;
   }
-  .wrap { width:100%; max-width:980px; display:grid; grid-template-columns: 330px 1fr; gap:14px; }
+  .wrap { width:100%; max-width:1200px; display:grid; grid-template-columns: 330px 1fr; gap:14px; }
   .card { background:var(--panel); border:1px solid #222231; border-radius:14px; padding:14px; }
   h1 { margin:0 0 8px 0; font-size:18px; letter-spacing:.3px; }
   h2 { margin:0 0 10px 0; font-size:15px; color:var(--muted); }
   .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .btn {
     background:var(--accent); color:#0b0b0f; border:0; padding:8px 12px; border-radius:10px;
-    font-weight:700; cursor:pointer; transition: opacity 0.2s;
+    font-weight:700; cursor:pointer; transition: all 0.2s;
   }
+  .btn:hover:not(:disabled) { background:var(--accent-hover); transform: translateY(-1px); }
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .btn.secondary { background:#2a2a38; color:var(--ink); border:1px solid #333349; }
+  .btn.danger { background:#ff4444; }
+  .btn.success { background:#44ff44; color:#0b0b0f; }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
   textarea, input, select {
-    width:100%; background:#0f0f16; color:var(--ink); border:1px solid #282838; border-radius:8px; padding:10px;
+    width:100%; background:#0f0f16; color:var(--ink); border:1px solid #282838; 
+    border-radius:8px; padding:10px; transition: border-color 0.2s;
   }
+  textarea:focus, input:focus, select:focus { border-color:var(--accent); outline:none; }
   .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .kv { display:flex; justify-content:space-between; border-bottom:1px dashed #2a2a3a; padding:4px 0; }
   .muted { color:var(--muted); }
-  .log { height:190px; overflow:auto; background:#0e0e15; border:1px solid #242436; border-radius:8px; padding:8px; }
-  .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#24243a; color:var(--ink); font-size:12px; }
+  .log { height:250px; overflow:auto; background:#0e0e15; border:1px solid #242436; border-radius:8px; padding:8px; }
+  .pill { 
+    display:inline-block; padding:2px 8px; border-radius:999px; 
+    background:#24243a; color:var(--ink); font-size:12px; transition: all 0.2s;
+  }
   .ok { background:#1d3d23; color:#7dff8b; }
   .warn { background:#3d3d1d; color:#ffe57d; }
   .bad { background:#3d1d1d; color:#ff7d7d; }
@@ -47,676 +58,1159 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.6; }
   }
+  
+  /* Performance chart styles */
+  .perf-chart {
+    height: 120px; background: #0e0e15; border: 1px solid #242436; 
+    border-radius: 8px; padding: 10px; margin-top: 10px; position: relative;
+  }
+  .chart-bar {
+    position: absolute; bottom: 10px; width: 8px; background: var(--accent);
+    border-radius: 4px 4px 0 0; transition: height 0.3s;
+  }
+  .chart-label {
+    position: absolute; bottom: -5px; font-size: 10px; color: var(--muted);
+    transform: translateX(-50%);
+  }
+  
+  /* Task type selector */
+  .task-selector {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0;
+  }
+  .task-option {
+    padding: 8px; background: #1a1a24; border: 2px solid #2a2a3a; 
+    border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s;
+  }
+  .task-option:hover { border-color: var(--accent); }
+  .task-option.selected { 
+    background: var(--accent); color: #0b0b0f; border-color: var(--accent);
+  }
+  
+  /* Stats display */
+  .stat-grid { 
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px;
+  }
+  .stat-card {
+    background: #1a1a24; border: 1px solid #2a2a3a; border-radius: 8px; 
+    padding: 8px; text-align: center;
+  }
+  .stat-value { font-size: 20px; font-weight: bold; color: var(--accent); }
+  .stat-label { font-size: 11px; color: var(--muted); }
 </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
-      <h1>NyxMesh • Plain JS</h1>
+      <h1>🚀 NyxMesh Enhanced</h1>
       <div class="kv"><span>WebRTC</span><span id="cap-rtc" class="pill">…</span></div>
       <div class="kv"><span>WebGPU</span><span id="cap-gpu" class="pill">…</span></div>
-      <div class="kv"><span>Cores (hint)</span><span id="cap-cores" class="pill">…</span></div>
-      <div class="kv"><span>GPU score (synthetic)</span><span id="cap-gpuscore" class="pill">…</span></div>
+      <div class="kv"><span>CPU Cores</span><span id="cap-cores" class="pill">…</span></div>
+      <div class="kv"><span>GPU Score</span><span id="cap-gpuscore" class="pill">…</span></div>
+      <div class="kv"><span>Memory (est.)</span><span id="cap-memory" class="pill">…</span></div>
 
-      <h2>Role</h2>
+      <h2>Network Role</h2>
       <div class="row">
-        <label><input type="radio" name="role" value="coordinator" checked /> Coordinator (Creates Offer)</label>
-        <label><input type="radio" name="role" value="worker" /> Worker (Creates Answer)</label>
+        <label><input type="radio" name="role" value="coordinator" checked /> 📡 Coordinator</label>
+        <label><input type="radio" name="role" value="worker" /> ⚙️ Worker</label>
       </div>
       <div id="role-status" class="status-msg" style="display:none;"></div>
 
-      <h2>Resource Offer</h2>
+      <h2>Resource Configuration</h2>
       <div class="grid">
-        <div><label class="muted">Concurrency
-          <input id="concurrency" type="number" min="1" max="8" value="1" />
+        <div><label class="muted">Max Threads
+          <input id="concurrency" type="number" min="1" max="16" value="4" />
         </label></div>
         <div><label class="muted">Bandwidth (MB/s)
-          <input id="bw" type="number" min="1" max="100" value="8" />
+          <input id="bw" type="number" min="1" max="1000" value="100" />
         </label></div>
       </div>
       <div class="row" style="margin-top:10px">
-        <button class="btn" id="btn-offer">Publish Offer</button>
+        <button class="btn" id="btn-offer">📢 Publish Resources</button>
         <span id="offer-status" class="muted mono">idle</span>
       </div>
 
-      <h2>Signaling (copy-paste)</h2>
+      <h2>Connection Setup</h2>
       <div id="signal-instructions" class="status-msg">
-        <strong>Coordinator:</strong> Click "Create Offer" to start<br>
-        <strong>Worker:</strong> Wait for coordinator's offer first
+        <strong>Quick Setup:</strong> Coordinator creates offer → Worker creates answer → Connected!
       </div>
       
-      <div class="muted" style="margin:10px 0 6px 0">Your local description:</div>
-      <textarea id="local" rows="6" class="mono" placeholder="Will appear after creating offer/answer" readonly></textarea>
+      <textarea id="local" rows="4" class="mono" placeholder="Your description will appear here" readonly></textarea>
       <div class="row" style="margin:8px 0;">
         <button class="btn" id="btn-create">Create Offer/Answer</button>
-        <button class="btn secondary" id="btn-copy">Copy to Clipboard</button>
-        <button class="btn secondary" id="btn-clear-local">Clear</button>
+        <button class="btn secondary" id="btn-copy">📋 Copy</button>
       </div>
       
-      <div class="muted" style="margin-bottom:6px">Remote description from peer:</div>
-      <textarea id="remote" rows="6" class="mono" placeholder="Paste remote SDP here"></textarea>
+      <textarea id="remote" rows="4" class="mono" placeholder="Paste peer's description here"></textarea>
       <div class="row" style="margin-top:8px;">
-        <button class="btn" id="btn-remote">Set Remote Description</button>
-        <button class="btn secondary" id="btn-clear-remote">Clear</button>
+        <button class="btn" id="btn-remote">Set Remote</button>
+        <button class="btn danger" id="btn-reset">🔄 Reset All</button>
       </div>
 
-      <h2>Connection Status</h2>
-      <div class="kv"><span>PeerConnection</span><span id="pc-state" class="pill">not created</span></div>
-      <div class="kv"><span>ICE Connection</span><span id="ice-state" class="pill">not created</span></div>
-      <div class="kv"><span>DataChannel</span><span id="dc-state" class="pill">not created</span></div>
-      <div class="row" style="margin-top:10px">
-        <button class="btn secondary" id="btn-reset">Reset Connection</button>
-      </div>
+      <h2>Connection Health</h2>
+      <div class="kv"><span>Peer State</span><span id="pc-state" class="pill">idle</span></div>
+      <div class="kv"><span>ICE State</span><span id="ice-state" class="pill">idle</span></div>
+      <div class="kv"><span>Channel</span><span id="dc-state" class="pill">idle</span></div>
+      <div class="kv"><span>Latency</span><span id="latency" class="pill">N/A</span></div>
+      <div class="kv"><span>Throughput</span><span id="throughput" class="pill">N/A</span></div>
     </div>
 
-    <div class="card">
-      <h1>Job Console</h1>
+    <div class="card" style="grid-column: 2;">
+      <h1>⚡ Compute Dashboard</h1>
 
-      <div class="row" style="margin-bottom:8px">
-        <button class="btn" id="btn-run" disabled>Run Demo Job (256×256 matmul)</button>
-        <button class="btn secondary" id="btn-pause" disabled>Pause Worker</button>
+      <div class="grid">
+        <div class="card" style="padding:10px;">
+          <h2>Task Configuration</h2>
+          <div class="task-selector" id="task-types">
+            <div class="task-option selected" data-type="matmul">Matrix Multiply</div>
+            <div class="task-option" data-type="prime">Prime Search</div>
+            <div class="task-option" data-type="mandelbrot">Mandelbrot</div>
+            <div class="task-option" data-type="sort">Array Sort</div>
+            <div class="task-option" data-type="hash">Hash Mining</div>
+            <div class="task-option" data-type="monte">Monte Carlo π</div>
+          </div>
+          
+          <label class="muted">Problem Size
+            <select id="task-size">
+              <option value="128">Small (128)</option>
+              <option value="256" selected>Medium (256)</option>
+              <option value="512">Large (512)</option>
+              <option value="1024">XLarge (1024)</option>
+              <option value="2048">XXL (2048)</option>
+            </select>
+          </label>
+          
+          <div class="row" style="margin-top:10px;">
+            <button class="btn success" id="btn-run" disabled>▶️ Run Task</button>
+            <button class="btn" id="btn-batch" disabled>🚀 Run Batch (10)</button>
+            <button class="btn" id="btn-stress" disabled>💪 Stress Test</button>
+          </div>
+        </div>
+
+        <div class="card" style="padding:10px;">
+          <h2>Performance Metrics</h2>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <div class="stat-value" id="avg-gflops">0</div>
+              <div class="stat-label">Avg GFLOPS</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="peak-gflops">0</div>
+              <div class="stat-label">Peak GFLOPS</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="total-tasks">0</div>
+              <div class="stat-label">Total Tasks</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="success-rate">0%</div>
+              <div class="stat-label">Success Rate</div>
+            </div>
+          </div>
+          <div class="perf-chart" id="perf-chart"></div>
+        </div>
+      </div>
+
+      <div class="grid" style="margin-top:10px;">
+        <div class="card" style="padding:10px;">
+          <h2>📤 Outbound Stats</h2>
+          <div class="kv"><span>Tasks Sent</span><span id="stat-sent" class="pill">0</span></div>
+          <div class="kv"><span>Results Accepted</span><span id="stat-accepted" class="pill">0</span></div>
+          <div class="kv"><span>Avg Response Time</span><span id="stat-response" class="pill">N/A</span></div>
+        </div>
+        <div class="card" style="padding:10px;">
+          <h2>📥 Inbound Stats</h2>
+          <div class="kv"><span>Tasks Received</span><span id="stat-recv" class="pill">0</span></div>
+          <div class="kv"><span>Tasks Completed</span><span id="stat-completed" class="pill">0</span></div>
+          <div class="kv"><span>Compute Time</span><span id="stat-compute" class="pill">N/A</span></div>
+        </div>
+      </div>
+
+      <div class="row" style="margin:10px 0;">
+        <button class="btn secondary" id="btn-pause" disabled>⏸️ Pause Worker</button>
+        <button class="btn secondary" id="btn-export">📊 Export Stats</button>
         <button class="btn secondary" id="btn-clear-log">Clear Log</button>
+        <button class="btn secondary" id="btn-ping" disabled>🏓 Ping</button>
       </div>
 
-      <div class="grid" style="margin-bottom:10px">
-        <div class="card" style="padding:10px">
-          <h2>Outbound</h2>
-          <div class="kv"><span>Tasks sent</span><span id="stat-tasks-sent" class="pill">0</span></div>
-          <div class="kv"><span>Accepted</span><span id="stat-accepted" class="pill">0</span></div>
-        </div>
-        <div class="card" style="padding:10px">
-          <h2>Inbound</h2>
-          <div class="kv"><span>Tasks received</span><span id="stat-tasks-recv" class="pill">0</span></div>
-          <div class="kv"><span>Completed</span><span id="stat-completed" class="pill">0</span></div>
-        </div>
-      </div>
-
-      <h2>Activity Log</h2>
+      <h2>Activity Monitor</h2>
       <pre id="log" class="log mono"></pre>
     </div>
   </div>
 
 <script>
-/* ------------------ utilities ------------------ */
+/* ==================== UTILITIES ==================== */
 const $ = sel => document.querySelector(sel);
-const logEl = $("#log");
+const $$ = sel => document.querySelectorAll(sel);
 
-function log(...args){ 
-  const timestamp = new Date().toLocaleTimeString();
-  const s = `[${timestamp}] ` + args.map(a => typeof a==='string'? a : JSON.stringify(a)).join(' '); 
-  logEl.textContent += s + "\n"; 
-  logEl.scrollTop = logEl.scrollHeight; 
+class Logger {
+  constructor(element) {
+    this.element = element;
+    this.maxLines = 100;
+  }
+  
+  log(...args) {
+    const timestamp = new Date().toLocaleTimeString();
+    const message = args.map(a => typeof a === 'string' ? a : JSON.stringify(a, null, 2)).join(' ');
+    const line = `[${timestamp}] ${message}\n`;
+    
+    this.element.textContent += line;
+    
+    // Limit log size
+    const lines = this.element.textContent.split('\n');
+    if (lines.length > this.maxLines) {
+      this.element.textContent = lines.slice(-this.maxLines).join('\n');
+    }
+    
+    this.element.scrollTop = this.element.scrollHeight;
+  }
+  
+  clear() {
+    this.element.textContent = '';
+    this.log('Log cleared');
+  }
 }
 
-function pill(el, text, cls=""){ 
-  el.textContent = text; 
-  el.className = "pill " + cls; 
+const logger = new Logger($("#log"));
+const log = (...args) => logger.log(...args);
+
+function pill(el, text, cls = "") {
+  el.textContent = text;
+  el.className = "pill " + cls;
 }
 
-function showStatus(msg, isError = false) {
+function showStatus(msg, isError = false, duration = 5000) {
   const el = $("#role-status");
   el.textContent = msg;
   el.style.display = "block";
   el.style.background = isError ? "#3d1d1d" : "#1a1a24";
   el.style.color = isError ? "#ff7d7d" : "#7dcfff";
-  setTimeout(() => { el.style.display = "none"; }, 5000);
+  
+  if (duration > 0) {
+    setTimeout(() => { el.style.display = "none"; }, duration);
+  }
+}
+
+/* ==================== SYSTEM CAPABILITIES ==================== */
+class SystemCapabilities {
+  constructor() {
+    this.caps = {
+      rtc: false,
+      gpu: false,
+      cores: 1,
+      gpuScore: 0,
+      memory: 0
+    };
+  }
+  
+  async probe() {
+    this.caps.rtc = !!window.RTCPeerConnection;
+    this.caps.gpu = !!navigator.gpu;
+    this.caps.cores = navigator.hardwareConcurrency || 4;
+    this.caps.gpuScore = this.caps.gpu ? this.caps.cores * 1000 : 0;
+    
+    // Estimate memory
+    if (navigator.deviceMemory) {
+      this.caps.memory = navigator.deviceMemory;
+    } else {
+      this.caps.memory = this.caps.cores * 2; // Rough estimate
+    }
+    
+    // Update UI
+    pill($("#cap-rtc"), this.caps.rtc ? "ready" : "missing", this.caps.rtc ? "ok" : "bad");
+    pill($("#cap-gpu"), this.caps.gpu ? "ready" : "missing", this.caps.gpu ? "ok" : "warn");
+    pill($("#cap-cores"), String(this.caps.cores), "info");
+    pill($("#cap-gpuscore"), String(this.caps.gpuScore), "info");
+    pill($("#cap-memory"), `${this.caps.memory} GB`, "info");
+    
+    if (!this.caps.rtc) {
+      showStatus("⚠️ WebRTC not available in this browser!", true);
+    }
+    
+    return this.caps;
+  }
+}
+
+/* ==================== PERFORMANCE TRACKER ==================== */
+class PerformanceTracker {
+  constructor() {
+    this.history = [];
+    this.maxHistory = 20;
+    this.stats = {
+      totalTasks: 0,
+      successfulTasks: 0,
+      totalGflops: 0,
+      peakGflops: 0,
+      avgResponseTime: 0,
+      totalComputeTime: 0
+    };
+  }
+  
+  addResult(result) {
+    const gflops = parseFloat(result.perf.gflops);
+    
+    this.history.push({
+      time: Date.now(),
+      gflops: gflops,
+      ms: result.perf.ms,
+      size: result.perf.n
+    });
+    
+    if (this.history.length > this.maxHistory) {
+      this.history.shift();
+    }
+    
+    this.stats.totalTasks++;
+    this.stats.successfulTasks++;
+    this.stats.totalGflops += gflops;
+    this.stats.peakGflops = Math.max(this.stats.peakGflops, gflops);
+    this.stats.totalComputeTime += result.perf.ms;
+    
+    this.updateUI();
+    this.drawChart();
+  }
+  
+  updateUI() {
+    const avgGflops = this.stats.totalTasks > 0 
+      ? (this.stats.totalGflops / this.stats.totalTasks).toFixed(2) 
+      : 0;
+    
+    const successRate = this.stats.totalTasks > 0
+      ? Math.round((this.stats.successfulTasks / this.stats.totalTasks) * 100)
+      : 0;
+    
+    $("#avg-gflops").textContent = avgGflops;
+    $("#peak-gflops").textContent = this.stats.peakGflops.toFixed(2);
+    $("#total-tasks").textContent = this.stats.totalTasks;
+    $("#success-rate").textContent = `${successRate}%`;
+    
+    if (this.stats.totalTasks > 0) {
+      $("#stat-compute").textContent = `${Math.round(this.stats.totalComputeTime / this.stats.totalTasks)}ms`;
+    }
+  }
+  
+  drawChart() {
+    const chart = $("#perf-chart");
+    chart.innerHTML = '';
+    
+    if (this.history.length === 0) return;
+    
+    const maxGflops = Math.max(...this.history.map(h => h.gflops));
+    const chartHeight = 100;
+    
+    this.history.forEach((item, index) => {
+      const bar = document.createElement('div');
+      bar.className = 'chart-bar';
+      bar.style.left = `${10 + index * 25}px`;
+      bar.style.height = `${(item.gflops / maxGflops) * chartHeight}px`;
+      bar.title = `${item.gflops.toFixed(2)} GFLOPS`;
+      chart.appendChild(bar);
+    });
+  }
+}
+
+/* ==================== TASK TYPES ==================== */
+const TaskTypes = {
+  matmul: {
+    name: "Matrix Multiplication",
+    compute: function(params) {
+      const n = params.n || 256;
+      const A = new Float32Array(n * n);
+      const B = new Float32Array(n * n);
+      const C = new Float32Array(n * n);
+      
+      // Initialize matrices
+      for (let i = 0; i < n * n; i++) {
+        A[i] = Math.random() * 2 - 1;
+        B[i] = Math.random() * 2 - 1;
+      }
+      
+      // Compute
+      const t0 = performance.now();
+      for (let i = 0; i < n; i++) {
+        for (let k = 0; k < n; k++) {
+          const aik = A[i * n + k];
+          for (let j = 0; j < n; j++) {
+            C[i * n + j] += aik * B[k * n + j];
+          }
+        }
+      }
+      const t1 = performance.now();
+      
+      return {
+        result: C,
+        time: t1 - t0,
+        ops: 2 * Math.pow(n, 3)
+      };
+    }
+  },
+  
+  prime: {
+    name: "Prime Number Search",
+    compute: function(params) {
+      const limit = params.n * 1000;
+      const t0 = performance.now();
+      const primes = [];
+      
+      for (let n = 2; n <= limit && primes.length < params.n; n++) {
+        let isPrime = true;
+        for (let i = 2; i <= Math.sqrt(n); i++) {
+          if (n % i === 0) {
+            isPrime = false;
+            break;
+          }
+        }
+        if (isPrime) primes.push(n);
+      }
+      
+      const t1 = performance.now();
+      return {
+        result: new Float32Array(primes),
+        time: t1 - t0,
+        ops: primes.length * Math.sqrt(limit)
+      };
+    }
+  },
+  
+  mandelbrot: {
+    name: "Mandelbrot Set",
+    compute: function(params) {
+      const size = params.n;
+      const maxIter = 100;
+      const result = new Float32Array(size * size);
+      
+      const t0 = performance.now();
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const c_re = (x - size/2) * 4.0/size;
+          const c_im = (y - size/2) * 4.0/size;
+          let z_re = 0, z_im = 0;
+          let iter = 0;
+          
+          while (z_re*z_re + z_im*z_im <= 4 && iter < maxIter) {
+            const tmp = z_re*z_re - z_im*z_im + c_re;
+            z_im = 2*z_re*z_im + c_im;
+            z_re = tmp;
+            iter++;
+          }
+          result[y * size + x] = iter / maxIter;
+        }
+      }
+      const t1 = performance.now();
+      
+      return {
+        result: result,
+        time: t1 - t0,
+        ops: size * size * maxIter
+      };
+    }
+  },
+  
+  sort: {
+    name: "Array Sorting",
+    compute: function(params) {
+      const size = params.n * 100;
+      const arr = new Float32Array(size);
+      for (let i = 0; i < size; i++) {
+        arr[i] = Math.random();
+      }
+      
+      const t0 = performance.now();
+      // Quick sort implementation
+      arr.sort((a, b) => a - b);
+      const t1 = performance.now();
+      
+      return {
+        result: arr,
+        time: t1 - t0,
+        ops: size * Math.log2(size)
+      };
+    }
+  },
+  
+  hash: {
+    name: "Hash Mining",
+    compute: function(params) {
+      const iterations = params.n * 10;
+      const results = [];
+      
+      const t0 = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        const str = `block_${i}_${Math.random()}`;
+        let hash = 0;
+        for (let j = 0; j < str.length; j++) {
+          hash = ((hash << 5) - hash) + str.charCodeAt(j);
+          hash = hash & hash;
+        }
+        results.push(hash);
+      }
+      const t1 = performance.now();
+      
+      return {
+        result: new Float32Array(results),
+        time: t1 - t0,
+        ops: iterations * 20
+      };
+    }
+  },
+  
+  monte: {
+    name: "Monte Carlo π",
+    compute: function(params) {
+      const samples = params.n * params.n;
+      let inside = 0;
+      
+      const t0 = performance.now();
+      for (let i = 0; i < samples; i++) {
+        const x = Math.random();
+        const y = Math.random();
+        if (x*x + y*y <= 1) inside++;
+      }
+      const pi = (inside / samples) * 4;
+      const t1 = performance.now();
+      
+      return {
+        result: new Float32Array([pi]),
+        time: t1 - t0,
+        ops: samples * 4
+      };
+    }
+  }
+};
+
+/* ==================== P2P CONNECTION MANAGER ==================== */
+class P2PConnection {
+  constructor(role) {
+    this.role = role;
+    this.pc = null;
+    this.dc = null;
+    this.nodeId = "node_" + Math.random().toString(36).slice(2, 8);
+    this.connectionReady = false;
+    this.paused = false;
+    this.pingInterval = null;
+    this.lastPing = 0;
+    this.latency = 0;
+  }
+  
+  async createPeer() {
+    if (this.pc) {
+      this.close();
+    }
+    
+    log(`Creating peer connection as ${this.role}...`);
+    
+    this.pc = new RTCPeerConnection({
+      iceServers: [
+        {urls: "stun:stun.l.google.com:19302"},
+        {urls: "stun:stun1.l.google.com:19302"}
+      ],
+      iceCandidatePoolSize: 10
+    });
+    
+    this.setupEventHandlers();
+    
+    if (this.role === "coordinator") {
+      log("Creating data channel 'mesh'...");
+      this.dc = this.pc.createDataChannel("mesh", {
+        ordered: true,
+        maxRetransmits: 3
+      });
+      this.wireDataChannel(this.dc);
+    } else {
+      this.pc.ondatachannel = (e) => {
+        log("Data channel received from coordinator");
+        this.dc = e.channel;
+        this.wireDataChannel(this.dc);
+      };
+    }
+    
+    pill($("#pc-state"), "new", "warn");
+    pill($("#ice-state"), "new", "warn");
+  }
+  
+  setupEventHandlers() {
+    this.pc.onconnectionstatechange = () => {
+      const state = this.pc.connectionState;
+      let cls = "";
+      if (state === "connected") cls = "ok";
+      else if (state === "failed" || state === "closed") cls = "bad";
+      else if (state === "connecting" || state === "new") cls = "warn";
+      pill($("#pc-state"), state, cls);
+      log(`Connection state: ${state}`);
+    };
+    
+    this.pc.oniceconnectionstatechange = () => {
+      const state = this.pc.iceConnectionState;
+      let cls = "";
+      if (state === "connected" || state === "completed") cls = "ok";
+      else if (state === "failed" || state === "disconnected") cls = "bad";
+      else if (state === "checking" || state === "new") cls = "warn";
+      pill($("#ice-state"), state, cls);
+      log(`ICE state: ${state}`);
+    };
+    
+    let candidateCount = 0;
+    let gatheringTimeout = null;
+    
+    this.pc.onicecandidate = (e) => {
+      if (e.candidate) {
+        candidateCount++;
+        const type = e.candidate.type || 'unknown';
+        log(`ICE candidate #${candidateCount}: ${type}`);
+        
+        if (gatheringTimeout) clearTimeout(gatheringTimeout);
+        gatheringTimeout = setTimeout(() => {
+          if (this.pc.localDescription) {
+            $("#local").value = JSON.stringify(this.pc.localDescription);
+            log("ICE gathering complete");
+          }
+        }, 1000);
+      } else {
+        if (gatheringTimeout) clearTimeout(gatheringTimeout);
+        $("#local").value = JSON.stringify(this.pc.localDescription);
+        log("ICE gathering complete");
+      }
+    };
+  }
+  
+  wireDataChannel(channel) {
+    channel.onopen = () => {
+      pill($("#dc-state"), "open", "ok");
+      log("✅ Data channel open!");
+      this.connectionReady = true;
+      
+      $("#btn-offer").disabled = false;
+      $("#btn-pause").disabled = false;
+      $("#btn-ping").disabled = false;
+      
+      if (this.role === "coordinator") {
+        $("#btn-run").disabled = false;
+        $("#btn-batch").disabled = false;
+        $("#btn-stress").disabled = false;
+      }
+      
+      this.sendHello();
+      this.startPingInterval();
+      showStatus("🎉 Connection established successfully!");
+    };
+    
+    channel.onclose = () => {
+      pill($("#dc-state"), "closed", "bad");
+      log("Data channel closed");
+      this.connectionReady = false;
+      this.stopPingInterval();
+      $("#btn-run").disabled = true;
+      $("#btn-batch").disabled = true;
+      $("#btn-stress").disabled = true;
+      $("#btn-pause").disabled = true;
+      $("#btn-ping").disabled = true;
+    };
+    
+    channel.onerror = (e) => {
+      log("❌ Data channel error:", e.error?.message || "Unknown error");
+      pill($("#dc-state"), "error", "bad");
+    };
+    
+    channel.onmessage = (e) => this.onMessage(e);
+    
+    pill($("#dc-state"), "connecting", "warn");
+  }
+  
+  startPingInterval() {
+    this.pingInterval = setInterval(() => {
+      if (this.connectionReady) {
+        this.sendPing();
+      }
+    }, 5000);
+  }
+  
+  stopPingInterval() {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
+    }
+  }
+  
+  sendPing() {
+    this.lastPing = Date.now();
+    this.send({ type: "PING", timestamp: this.lastPing });
+  }
+  
+  send(obj) {
+    if (this.dc && this.dc.readyState === "open") {
+      this.dc.send(JSON.stringify(obj));
+      return true;
+    }
+    return false;
+  }
+  
+  sendHello() {
+    const hello = {
+      type: "HELLO",
+      node_id: this.nodeId,
+      role: this.role,
+      capabilities: systemCaps.caps
+    };
+    this.send(hello);
+    log("HELLO sent:", hello);
+  }
+  
+  async createOffer() {
+    if (!this.pc) await this.createPeer();
+    
+    log("Creating offer...");
+    const offer = await this.pc.createOffer();
+    await this.pc.setLocalDescription(offer);
+    log("Offer created. Gathering ICE candidates...");
+    showStatus("Gathering ICE candidates...");
+    
+    setTimeout(() => {
+      if ($("#local").value === "" && this.pc.localDescription) {
+        $("#local").value = JSON.stringify(this.pc.localDescription);
+        showStatus("Offer ready! Copy and send to worker.");
+      }
+    }, 3000);
+  }
+  
+  async createAnswer() {
+    if (!this.pc.remoteDescription) {
+      showStatus("⚠️ Set remote offer first!", true);
+      return;
+    }
+    
+    log("Creating answer...");
+    const answer = await this.pc.createAnswer();
+    await this.pc.setLocalDescription(answer);
+    log("Answer created. Gathering ICE candidates...");
+    
+    setTimeout(() => {
+      if ($("#local").value === "" && this.pc.localDescription) {
+        $("#local").value = JSON.stringify(this.pc.localDescription);
+        showStatus("Answer ready! Send back to coordinator.");
+      }
+    }, 3000);
+  }
+  
+  async setRemoteDescription(descStr) {
+    const desc = JSON.parse(descStr);
+    if (!this.pc) await this.createPeer();
+    
+    log(`Setting remote ${desc.type}...`);
+    await this.pc.setRemoteDescription(desc);
+    log(`✅ Remote ${desc.type} set successfully`);
+    
+    if (desc.type === "offer" && this.role === "worker") {
+      showStatus("Offer set! Now create your answer.");
+    } else if (desc.type === "answer" && this.role === "coordinator") {
+      showStatus("Answer set! Connecting...");
+    }
+  }
+  
+  async onMessage(ev) {
+    try {
+      const msg = JSON.parse(ev.data);
+      
+      switch(msg.type) {
+        case "HELLO":
+          log(`📥 HELLO from ${msg.node_id} (${msg.role})`);
+          break;
+          
+        case "PING":
+          this.send({ type: "PONG", timestamp: msg.timestamp });
+          break;
+          
+        case "PONG":
+          this.latency = Date.now() - msg.timestamp;
+          pill($("#latency"), `${this.latency}ms`, this.latency < 50 ? "ok" : "warn");
+          break;
+          
+        case "RESOURCE_OFFER":
+          log("📥 Resource offer:", msg);
+          break;
+          
+        case "TASK":
+          await this.handleTask(msg);
+          break;
+          
+        case "RESULT":
+          this.handleResult(msg);
+          break;
+          
+        case "PAUSE":
+          this.paused = true;
+          log("⏸️ Worker paused");
+          break;
+          
+        case "RESUME":
+          this.paused = false;
+          log("▶️ Worker resumed");
+          break;
+          
+        default:
+          log(`Unknown message: ${msg.type}`);
+      }
+    } catch(e) {
+      log(`Error handling message: ${e.message}`);
+    }
+  }
+  
+  async handleTask(msg) {
+    stats.recv++;
+    refreshStats();
+    log(`📥 Task received: ${msg.task_type} size=${msg.params.n}`);
+    
+    if (this.paused) {
+      this.send({
+        type: "RESULT",
+        job_id: msg.job_id,
+        status: "rejected",
+        reason: "worker_paused"
+      });
+      return;
+    }
+    
+    const taskType = TaskTypes[msg.task_type] || TaskTypes.matmul;
+    const computation = taskType.compute(msg.params);
+    
+    // Hash result for verification
+    const hash = await this.hashResult(computation.result);
+    
+    const result = {
+      type: "RESULT",
+      job_id: msg.job_id,
+      task_type: msg.task_type,
+      status: "completed",
+      output_hash: hash,
+      perf: {
+        ms: Math.round(computation.time),
+        n: msg.params.n,
+        gflops: (computation.ops / (computation.time * 1e6)).toFixed(3)
+      }
+    };
+    
+    this.send(result);
+    stats.completed++;
+    refreshStats();
+    log(`📤 Result sent: ${result.perf.gflops} GFLOPS`);
+  }
+  
+  handleResult(msg) {
+    if (msg.status === "completed") {
+      stats.accepted++;
+      perfTracker.addResult(msg);
+      log(`📥 Result: ${msg.task_type} - ${msg.perf.gflops} GFLOPS`);
+    } else {
+      log(`📥 Task rejected: ${msg.reason}`);
+    }
+    refreshStats();
+  }
+  
+  async hashResult(data) {
+    const buffer = new Uint8Array(data.buffer);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+    return Array.from(new Uint8Array(hashBuffer))
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+  
+  close() {
+    this.stopPingInterval();
+    if (this.dc) this.dc.close();
+    if (this.pc) this.pc.close();
+    this.dc = null;
+    this.pc = null;
+    this.connectionReady = false;
+  }
+}
+
+/* ==================== GLOBAL STATE ==================== */
+let role = "coordinator";
+let connection = null;
+let systemCaps = new SystemCapabilities();
+let perfTracker = new PerformanceTracker();
+let selectedTaskType = "matmul";
+let jobCounter = 0;
+
+const stats = {
+  sent: 0,
+  accepted: 0,
+  recv: 0,
+  completed: 0
+};
+
+function refreshStats() {
+  pill($("#stat-sent"), stats.sent);
+  pill($("#stat-accepted"), stats.accepted);
+  pill($("#stat-recv"), stats.recv);
+  pill($("#stat-completed"), stats.completed);
+  
+  if (stats.sent > 0) {
+    pill($("#stat-response"), `${Math.round(perfTracker.stats.totalComputeTime / stats.sent)}ms`);
+  }
+}
+
+/* ==================== UI EVENT HANDLERS ==================== */
+// Role switching
+document.querySelectorAll("input[name=role]").forEach(r => {
+  r.addEventListener("change", () => {
+    role = r.value;
+    log(`Role changed to ${role}`);
+    
+    if (connection) {
+      connection.close();
+      connection = null;
+    }
+    
+    connection = new P2PConnection(role);
+    resetUI();
+    updateInstructions();
+  });
+});
+
+// Task type selection
+document.querySelectorAll(".task-option").forEach(option => {
+  option.addEventListener("click", () => {
+    document.querySelectorAll(".task-option").forEach(o => o.classList.remove("selected"));
+    option.classList.add("selected");
+    selectedTaskType = option.dataset.type;
+    log(`Task type: ${TaskTypes[selectedTaskType].name}`);
+  });
+});
+
+// Connection buttons
+$("#btn-create").onclick = async () => {
+  try {
+    if (!connection) {
+      connection = new P2PConnection(role);
+    }
+    
+    if (role === "coordinator") {
+      await connection.createOffer();
+    } else {
+      await connection.createAnswer();
+    }
+  } catch(e) {
+    log(`Error: ${e.message}`);
+    showStatus(`Error: ${e.message}`, true);
+  }
+};
+
+$("#btn-remote").onclick = async () => {
+  try {
+    const remoteDesc = $("#remote").value.trim();
+    if (!remoteDesc) {
+      showStatus("Paste remote description first!", true);
+      return;
+    }
+    
+    if (!connection) {
+      connection = new P2PConnection(role);
+    }
+    
+    await connection.setRemoteDescription(remoteDesc);
+  } catch(e) {
+    log(`Error: ${e.message}`);
+    showStatus(`Error: ${e.message}`, true);
+  }
+};
+
+$("#btn-copy").onclick = async () => {
+  const text = $("#local").value.trim();
+  if (!text) {
+    showStatus("Nothing to copy!", true);
+    return;
+  }
+  
+  try {
+    await navigator.clipboard.writeText(text);
+    showStatus("✅ Copied to clipboard!");
+  } catch(e) {
+    showStatus("Copy failed - select manually", true);
+  }
+};
+
+$("#btn-reset").onclick = () => {
+  if (connection) {
+    connection.close();
+    connection = null;
+  }
+  resetUI();
+  log("Connection reset");
+};
+
+// Task execution buttons
+$("#btn-run").onclick = () => {
+  if (!connection || !connection.connectionReady) return;
+  
+  jobCounter++;
+  const task = {
+    type: "TASK",
+    job_id: `job_${jobCounter}`,
+    task_type: selectedTaskType,
+    params: {
+      n: parseInt($("#task-size").value)
+    }
+  };
+  
+  connection.send(task);
+  stats.sent++;
+  refreshStats();
+  log(`📤 Task sent: ${TaskTypes[selectedTaskType].name} (${task.params.n})`);
+};
+
+$("#btn-batch").onclick = () => {
+  if (!connection || !connection.connectionReady) return;
+  
+  const size = parseInt($("#task-size").value);
+  const types = Object.keys(TaskTypes);
+  
+  for (let i = 0; i < 10; i++) {
+    jobCounter++;
+    const taskType = types[i % types.length];
+    
+    setTimeout(() => {
+      const task = {
+        type: "TASK",
+        job_id: `batch_${jobCounter}`,
+        task_type: taskType,
+        params: { n: size }
+      };
+      
+      connection.send(task);
+      stats.sent++;
+      refreshStats();
+      log(`📤 Batch task ${i+1}/10: ${TaskTypes[taskType].name}`);
+    }, i * 100);
+  }
+};
+
+$("#btn-stress").onclick = () => {
+  if (!connection || !connection.connectionReady) return;
+  
+  showStatus("🔥 Stress test running for 10 seconds...");
+  const startTime = Date.now();
+  const sizes = [128, 256, 512];
+  const types = Object.keys(TaskTypes);
+  
+  const interval = setInterval(() => {
+    if (Date.now() - startTime > 10000) {
+      clearInterval(interval);
+      showStatus("Stress test complete!");
+      return;
+    }
+    
+    jobCounter++;
+    const task = {
+      type: "TASK",
+      job_id: `stress_${jobCounter}`,
+      task_type: types[Math.floor(Math.random() * types.length)],
+      params: {
+        n: sizes[Math.floor(Math.random() * sizes.length)]
+      }
+    };
+    
+    connection.send(task);
+    stats.sent++;
+    refreshStats();
+  }, 50);
+};
+
+$("#btn-pause").onclick = () => {
+  if (!connection || !connection.connectionReady) return;
+  
+  connection.paused = !connection.paused;
+  const isPaused = connection.paused;
+  
+  $("#btn-pause").textContent = isPaused ? "▶️ Resume Worker" : "⏸️ Pause Worker";
+  connection.send({ type: isPaused ? "PAUSE" : "RESUME" });
+  log(isPaused ? "Worker paused" : "Worker resumed");
+};
+
+$("#btn-ping").onclick = () => {
+  if (connection && connection.connectionReady) {
+    connection.sendPing();
+    log("🏓 Ping sent");
+  }
+};
+
+$("#btn-offer").onclick = () => {
+  if (!connection || !connection.connectionReady) return;
+  
+  const offer = {
+    type: "RESOURCE_OFFER",
+    node_id: connection.nodeId,
+    limits: {
+      concurrency: parseInt($("#concurrency").value),
+      bandwidth_mbps: parseInt($("#bw").value)
+    },
+    capabilities: systemCaps.caps
+  };
+  
+  connection.send(offer);
+  $("#offer-status").textContent = "published ✓";
+  log("📢 Resource offer published");
+};
+
+$("#btn-export").onclick = () => {
+  const data = {
+    timestamp: new Date().toISOString(),
+    stats: stats,
+    performance: perfTracker.stats,
+    history: perfTracker.history,
+    capabilities: systemCaps.caps
+  };
+  
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `nyxmesh-stats-${Date.now()}.json`;
+  a.click();
+  
+  showStatus("📊 Stats exported!");
+};
+
+$("#btn-clear-log").onclick = () => logger.clear();
+
+/* ==================== HELPER FUNCTIONS ==================== */
+function resetUI() {
+  $("#local").value = "";
+  $("#remote").value = "";
+  pill($("#pc-state"), "idle");
+  pill($("#ice-state"), "idle");
+  pill($("#dc-state"), "idle");
+  pill($("#latency"), "N/A");
+  pill($("#throughput"), "N/A");
+  
+  $("#btn-run").disabled = true;
+  $("#btn-batch").disabled = true;
+  $("#btn-stress").disabled = true;
+  $("#btn-pause").disabled = true;
+  $("#btn-ping").disabled = true;
 }
 
 function updateInstructions() {
   const inst = $("#signal-instructions");
   if (role === "coordinator") {
-    inst.innerHTML = "<strong>📡 Coordinator Mode:</strong> Create an offer and share it with the worker";
+    inst.innerHTML = "📡 <strong>Coordinator Mode:</strong> Create offer → Copy → Send to worker";
   } else {
-    inst.innerHTML = "<strong>⚙️ Worker Mode:</strong> Paste coordinator's offer, set it, then create your answer";
+    inst.innerHTML = "⚙️ <strong>Worker Mode:</strong> Paste offer → Set remote → Create answer → Send back";
   }
 }
 
-/* ------------------ capability probe ------------------ */
-const caps = {
-  rtc: !!window.RTCPeerConnection,
-  gpu: !!navigator.gpu,
-  cores: (navigator.hardwareConcurrency || 4),
-  gpuScore: 0
-};
-
-(async function gpuProbe(){
-  caps.gpuScore = (caps.gpu ? caps.cores * 500 : 0);
-  pill($("#cap-rtc"), caps.rtc? "available": "missing", caps.rtc? "ok":"bad");
-  pill($("#cap-gpu"), caps.gpu? "available": "missing", caps.gpu? "ok":"warn");
-  pill($("#cap-cores"), String(caps.cores), "info"); 
-  pill($("#cap-gpuscore"), String(caps.gpuScore), "info");
-  
-  if (!caps.rtc) {
-    showStatus("⚠️ WebRTC not available in this browser!", true);
-  }
-})();
-
-/* ------------------ state management ------------------ */
-let role = "coordinator";
-let pc = null, dc = null;
-let paused = false;
-let connectionReady = false;
-
-const stats = {
-  sent: 0, accepted: 0,
-  recv: 0, completed: 0
-};
-
-function refreshStats(){
-  $("#stat-tasks-sent").textContent = stats.sent;
-  $("#stat-accepted").textContent = stats.accepted;
-  $("#stat-tasks-recv").textContent = stats.recv;
-  $("#stat-completed").textContent = stats.completed;
-}
-
-function resetConnection() {
-  log("Resetting connection...");
-  
-  // Close existing connections
-  if (dc) {
-    dc.close();
-    dc = null;
-  }
-  if (pc) {
-    pc.close();
-    pc = null;
-  }
-  
-  // Clear UI
-  $("#local").value = "";
-  $("#remote").value = "";
-  pill($("#pc-state"), "not created");
-  pill($("#ice-state"), "not created");
-  pill($("#dc-state"), "not created");
-  
-  // Reset buttons
-  $("#btn-run").disabled = true;
-  $("#btn-pause").disabled = true;
-  $("#btn-offer").disabled = true;
-  $("#btn-create").disabled = false;
-  
-  connectionReady = false;
-  paused = false;
-  
-  updateInstructions();
-}
-
-// Role change handler
-document.querySelectorAll("input[name=role]").forEach(r => {
-  r.addEventListener("change", () => {
-    const oldRole = role;
-    role = r.value;
-    log(`Role changed: ${oldRole} → ${role}`);
-    showStatus(`Switched to ${role} mode. Connection reset.`);
-    resetConnection();
-  });
-});
-
-/* ------------------ WebRTC Setup ------------------ */
-function createPeer(){
-  if (pc) {
-    log("Peer connection already exists, resetting...");
-    resetConnection();
-  }
-  
-  log(`Creating peer connection as ${role}...`);
-  
-  pc = new RTCPeerConnection({
-    iceServers: [
-      {urls: "stun:stun.l.google.com:19302"},
-      {urls: "stun:stun1.l.google.com:19302"}
-    ],
-    iceCandidatePoolSize: 10  // Pre-gather candidates
-  });
-  
-  // Connection state handlers with proper coloring
-  pc.onconnectionstatechange = () => {
-    const state = pc.connectionState;
-    let cls = "";
-    if (state === "connected") cls = "ok";
-    else if (state === "failed" || state === "closed") cls = "bad";
-    else if (state === "connecting" || state === "new") cls = "warn";
-    pill($("#pc-state"), state, cls);
-    log(`Connection state: ${state}`);
-  };
-  
-  pc.oniceconnectionstatechange = () => {
-    const state = pc.iceConnectionState;
-    let cls = "";
-    if (state === "connected" || state === "completed") cls = "ok";
-    else if (state === "failed" || state === "disconnected") cls = "bad";
-    else if (state === "checking" || state === "new") cls = "warn";
-    pill($("#ice-state"), state, cls);
-    log(`ICE state: ${state}`);
-    
-    if (state === "failed") {
-      showStatus("⚠️ ICE connection failed. Check firewall/network settings.", true);
-    }
-  };
-  
-  // ICE candidate handler
-  let candidateCount = 0;
-  let gatheringTimeout = null;
-  
-  pc.onicecandidate = (e) => {
-    if (e.candidate) {
-      candidateCount++;
-      const candidateType = e.candidate.type || 'unknown';
-      const protocol = e.candidate.protocol || 'unknown';
-      log(`ICE candidate #${candidateCount}: ${candidateType}/${protocol}`);
-      
-      // Reset timeout on each candidate
-      if (gatheringTimeout) clearTimeout(gatheringTimeout);
-      
-      // Set timeout to complete gathering if no more candidates arrive
-      gatheringTimeout = setTimeout(() => {
-        if (pc.localDescription) {
-          $("#local").value = JSON.stringify(pc.localDescription);
-          log("ICE gathering complete (timeout)");
-        }
-      }, 1000);
-    } else {
-      // Null candidate means gathering is complete
-      if (gatheringTimeout) clearTimeout(gatheringTimeout);
-      $("#local").value = JSON.stringify(pc.localDescription);
-      log("ICE gathering complete (null candidate)");
-    }
-  };
-  
-  pc.onicegatheringstatechange = () => {
-    log(`ICE gathering state: ${pc.iceGatheringState}`);
-    if (pc.iceGatheringState === 'complete') {
-      if (gatheringTimeout) clearTimeout(gatheringTimeout);
-      $("#local").value = JSON.stringify(pc.localDescription);
-      log("ICE gathering complete (state change)");
-    }
-  };
-  
-  // Data channel setup
-  if (role === "coordinator") {
-    log("Creating data channel 'mesh'...");
-    dc = pc.createDataChannel("mesh", {ordered: true});
-    wireDataChannel(dc);
-  } else {
-    pc.ondatachannel = (e) => {
-      log("Data channel received from coordinator");
-      dc = e.channel;
-      wireDataChannel(dc);
-    };
-  }
-  
-  pill($("#pc-state"), "new", "warn");
-  pill($("#ice-state"), "new", "warn");
-}
-
-function wireDataChannel(channel){
-  channel.onopen = () => {
-    pill($("#dc-state"), "open", "ok");
-    log("✅ Data channel open!");
-    connectionReady = true;
-    
-    // Enable controls based on role
-    $("#btn-offer").disabled = false;
-    $("#btn-pause").disabled = false;
-    if (role === "coordinator") {
-      $("#btn-run").disabled = false;
-    }
-    
-    sendHello();
-    showStatus("🎉 Connection established successfully!");
-  };
-  
-  channel.onclose = () => {
-    pill($("#dc-state"), "closed", "bad");
-    log("Data channel closed");
-    connectionReady = false;
-    $("#btn-run").disabled = true;
-    $("#btn-pause").disabled = true;
-    $("#btn-offer").disabled = true;
-  };
-  
-  channel.onerror = (e) => {
-    log("❌ Data channel error:", e.error?.message || "Unknown error");
-    pill($("#dc-state"), "error", "bad");
-    showStatus("Data channel error occurred", true);
-  };
-  
-  channel.onmessage = onMessage;
-  
-  pill($("#dc-state"), "connecting", "warn");
-}
-
-/* ------------------ Signaling ------------------ */
-async function createLocalDesc(){
-  try {
-    if (!pc) createPeer();
-    
-    if (role === "coordinator") {
-      log("Creating offer...");
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      log("Offer created. Gathering ICE candidates...");
-      showStatus("Gathering ICE candidates... This may take a few seconds.");
-      
-      // Fallback: If ICE gathering doesn't complete naturally, force completion after 3 seconds
-      setTimeout(() => {
-        if ($("#local").value === "" && pc.localDescription) {
-          $("#local").value = JSON.stringify(pc.localDescription);
-          log("ICE gathering forced complete (3s timeout)");
-          showStatus("Offer ready! Copy it and send to the worker.");
-        }
-      }, 3000);
-    } else {
-      // Worker: check if remote offer is set
-      if (!pc.remoteDescription) {
-        showStatus("⚠️ Please paste and set the coordinator's offer first!", true);
-        return;
-      }
-      log("Creating answer...");
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      log("Answer created. Gathering ICE candidates...");
-      showStatus("Gathering ICE candidates... This may take a few seconds.");
-      
-      // Fallback for answer too
-      setTimeout(() => {
-        if ($("#local").value === "" && pc.localDescription) {
-          $("#local").value = JSON.stringify(pc.localDescription);
-          log("ICE gathering forced complete (3s timeout)");
-          showStatus("Answer ready! Copy it and send back to coordinator.");
-        }
-      }, 3000);
-    }
-  } catch (e) {
-    log("❌ Error creating local description:", e.message);
-    showStatus(`Error: ${e.message}`, true);
-  }
-}
-
-async function setRemoteDesc(){
-  try {
-    const txt = $("#remote").value.trim();
-    if (!txt) {
-      showStatus("⚠️ Please paste a remote description first!", true);
-      return;
-    }
-    
-    let desc;
-    try {
-      desc = JSON.parse(txt);
-    } catch (e) {
-      showStatus("⚠️ Invalid JSON format. Please check the pasted content.", true);
-      return;
-    }
-    
-    if (!pc) createPeer();
-    
-    log(`Setting remote ${desc.type}...`);
-    await pc.setRemoteDescription(desc);
-    log(`✅ Remote ${desc.type} set successfully`);
-    
-    if (desc.type === "offer" && role === "worker") {
-      showStatus("Offer set! Now click 'Create Offer/Answer' to generate your answer.");
-      $("#btn-create").classList.add("highlight");
-      setTimeout(() => $("#btn-create").classList.remove("highlight"), 3000);
-    } else if (desc.type === "answer" && role === "coordinator") {
-      showStatus("Answer set! Connection should establish shortly...");
-    }
-  } catch (e) {
-    log("❌ Error setting remote description:", e.message);
-    showStatus(`Error: ${e.message}`, true);
-  }
-}
-
-/* ------------------ Button handlers ------------------ */
-$("#btn-create").onclick = createLocalDesc;
-$("#btn-remote").onclick = setRemoteDesc;
-$("#btn-reset").onclick = resetConnection;
-
-$("#btn-copy").onclick = async () => {
-  const text = $("#local").value.trim();
-  if (!text) {
-    showStatus("Nothing to copy yet!", true);
-    return;
-  }
-  try {
-    await navigator.clipboard.writeText(text);
-    showStatus("✅ Copied to clipboard!");
-  } catch (e) {
-    showStatus("Failed to copy. Please select and copy manually.", true);
-  }
-};
-
-$("#btn-clear-local").onclick = () => { $("#local").value = ""; };
-$("#btn-clear-remote").onclick = () => { $("#remote").value = ""; };
-$("#btn-clear-log").onclick = () => { logEl.textContent = ""; log("Log cleared"); };
-
-/* ------------------ Mesh Protocol ------------------ */
-const nodeId = "node_" + Math.random().toString(36).slice(2, 8);
-
-function send(obj){
-  if (dc && dc.readyState === "open") {
-    dc.send(JSON.stringify(obj));
-    return true;
-  }
-  log("⚠️ Cannot send: Data channel not open");
-  return false;
-}
-
-function sendHello(){
-  const hello = {
-    type: "HELLO",
-    node_id: nodeId,
-    role: role,
-    capabilities: {
-      webgpu: caps.gpu,
-      gpu_score: caps.gpuScore,
-      cores: caps.cores
-    }
-  };
-  send(hello);
-  log("HELLO sent:", hello);
-}
-
-$("#btn-offer").onclick = () => {
-  if (!connectionReady) {
-    showStatus("Connection not ready yet!", true);
-    return;
-  }
-  
-  const offer = {
-    type: "RESOURCE_OFFER",
-    node_id: nodeId,
-    limits: {
-      concurrency: Number($("#concurrency").value || 1),
-      bandwidth_mbps: Number($("#bw").value || 8),
-      idle_only: false
-    },
-    score: {
-      gpu: caps.gpuScore,
-      latency_ms: 0,
-      reliability: 1.0
-    }
-  };
-  
-  if (send(offer)) {
-    $("#offer-status").textContent = "sent ✓";
-    log("RESOURCE_OFFER sent:", offer);
-  }
-};
-
-/* ------------------ Job Management ------------------ */
-let jobCounter = 0;
-
-$("#btn-run").onclick = () => {
-  if (!connectionReady || role !== "coordinator") {
-    showStatus("Only coordinator can send tasks!", true);
-    return;
-  }
-  
-  jobCounter++;
-  const task = {
-    type: "TASK",
-    job_id: `job_demo_${jobCounter}`,
-    chunk_id: 1,
-    params: { n: 256 }
-  };
-  
-  if (send(task)) {
-    stats.sent++;
-    refreshStats();
-    log("📤 TASK sent:", task);
-  }
-};
-
-$("#btn-pause").onclick = () => {
-  if (!connectionReady) return;
-  
-  paused = !paused;
-  $("#btn-pause").textContent = paused ? "Resume Worker" : "Pause Worker";
-  send({ type: paused ? "PAUSE" : "RESUME" });
-  log(paused ? "⏸️ Worker paused" : "▶️ Worker resumed");
-};
-
-/* ------------------ Worker Compute Functions ------------------ */
-function matmul(A, B, n){
-  const C = new Float32Array(n * n);
-  for (let i = 0; i < n; i++){
-    for (let k = 0; k < n; k++){
-      const aik = A[i * n + k];
-      for (let j = 0; j < n; j++){
-        C[i * n + j] += aik * B[k * n + j];
-      }
-    }
-  }
-  return C;
-}
-
-function randMat(n){
-  const T = new Float32Array(n * n);
-  for (let i = 0; i < T.length; i++) {
-    T[i] = Math.random() * 2 - 1;
-  }
-  return T;
-}
-
-async function sha256Hex(bytes){
-  const buf = await crypto.subtle.digest("SHA-256", bytes.buffer);
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
-/* ------------------ Message Handler ------------------ */
-async function onMessage(ev){
-  try {
-    const msg = JSON.parse(ev.data);
-    
-    switch(msg.type) {
-      case "HELLO":
-        log("📥 HELLO from", msg.node_id, "role:", msg.role || "unknown");
-        break;
-        
-      case "RESOURCE_OFFER":
-        log("📥 RESOURCE_OFFER:", msg);
-        break;
-        
-      case "PAUSE":
-        paused = true;
-        log("⏸️ Received PAUSE command");
-        break;
-        
-      case "RESUME":
-        paused = false;
-        log("▶️ Received RESUME command");
-        break;
-        
-      case "TASK":
-        stats.recv++;
-        refreshStats();
-        log("📥 TASK received:", msg);
-        
-        if (paused) {
-          log("Worker paused, skipping task");
-          send({
-            type: "TASK_REJECTED",
-            job_id: msg.job_id,
-            chunk_id: msg.chunk_id,
-            reason: "worker_paused"
-          });
-          break;
-        }
-        
-        // Execute task
-        const n = (msg.params && msg.params.n) || 256;
-        log(`Computing ${n}×${n} matrix multiplication...`);
-        
-        const A = randMat(n);
-        const B = randMat(n);
-        const t0 = performance.now();
-        const C = matmul(A, B, n);
-        const t1 = performance.now();
-        const duration = Math.round(t1 - t0);
-        
-        const hash = await sha256Hex(new Uint8Array(C.buffer));
-        
-        const result = {
-          type: "RESULT",
-          job_id: msg.job_id,
-          chunk_id: msg.chunk_id,
-          output_hash: "sha256:" + hash,
-          perf: {
-            ms: duration,
-            n: n,
-            gflops: (2 * Math.pow(n, 3) / (duration * 1e6)).toFixed(3)
-          }
-        };
-        
-        send(result);
-        stats.completed++;
-        refreshStats();
-        log("📤 RESULT sent:", result);
-        break;
-        
-      case "RESULT":
-        stats.accepted++;
-        refreshStats();
-        log("📥 RESULT received:", msg);
-        log(`Performance: ${msg.perf.ms}ms, ${msg.perf.gflops} GFLOPS`);
-        
-        // Auto-accept in this demo
-        send({
-          type: "ACCEPT",
-          job_id: msg.job_id,
-          chunk_id: msg.chunk_id
-        });
-        log("✅ ACCEPT sent");
-        break;
-        
-      case "ACCEPT":
-        log("✅ ACCEPT received for", msg.job_id);
-        break;
-        
-      case "TASK_REJECTED":
-        log("❌ Task rejected:", msg.reason);
-        break;
-        
-      default:
-        log("❓ Unknown message type:", msg);
-    }
-  } catch(e) {
-    log("❌ Error processing message:", e.message);
-  }
-}
-
-/* ------------------ Cleanup on page unload ------------------ */
+/* ==================== INITIALIZATION ==================== */
 window.addEventListener('beforeunload', () => {
-  if (dc) dc.close();
-  if (pc) pc.close();
+  if (connection) connection.close();
 });
 
-/* ------------------ Initialize ------------------ */
-log("NyxMesh P2P initialized");
-log(`Node ID: ${nodeId}`);
-updateInstructions();
+// Initialize on load
+(async () => {
+  await systemCaps.probe();
+  connection = new P2PConnection(role);
+  updateInstructions();
+  log("🚀 NyxMesh Enhanced initialized");
+  log(`Node ID: ${connection.nodeId}`);
+  log(`Capabilities: ${systemCaps.caps.cores} cores, GPU: ${systemCaps.caps.gpu}`);
+})();
 
 </script>
 </body>
