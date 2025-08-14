@@ -1,174 +1,279 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>NyxPay Invoice</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>NyxPay • Invoice Builder (Data-URL)</title>
 <style>
-  :root{--bg:#0a0a0a;--panel:#161616;--text:#f5f5f5;--muted:#bdbdbd;--accent:#FEB02E}
-  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,Segoe UI,Roboto,sans-serif;padding:24px}
-  .sheet{max-width:760px;margin:0 auto;background:var(--panel);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.45);overflow:hidden}
-  header,footer{padding:20px 24px} header{display:flex;gap:16px;align-items:center;border-bottom:1px solid #222}
-  .logo{width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#FFD86F,#FEB02E)}
-  h1{margin:0;font-size:18px}.muted{color:var(--muted)}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:20px 24px;border-bottom:1px solid #222}
-  .card{background:#111;border:1px solid #222;border-radius:10px;padding:14px}
-  .label{font-size:12px;letter-spacing:.04em;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
-  table{width:100%;border-collapse:collapse} th,td{padding:10px;border-bottom:1px solid #222;text-align:left}
-  tfoot td{border-top:2px solid #333;font-weight:700}.total{font-size:18px}
-  .btn{display:inline-block;background:var(--accent);color:#000;padding:12px 16px;border-radius:9px;font-weight:800;text-decoration:none;margin-top:10px;cursor:pointer;border:0}
-  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-  code{background:#111;border:1px solid #222;padding:6px 8px;border-radius:8px;word-break:break-all}
-  .actions{padding:20px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-  .note{padding:0 24px 20px;color:var(--muted);font-size:14px}
-  .warn{background:#2a1f00;border:1px solid #4d3a00;color:#ffd571;padding:10px 12px;border-radius:8px;margin:16px 24px}
+  :root{--bg:#0a0a0a;--panel:#151515;--text:#f5f5f5;--muted:#bdbdbd;--accent:#FEB02E}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,Segoe UI,Roboto,sans-serif;padding:24px}
+  h1{margin:0 0 12px 0;font-size:20px}
+  .wrap{max-width:980px;margin:0 auto}
+  .card{background:var(--panel);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.45);padding:18px}
+  .grid{display:grid;gap:12px}
+  @media (min-width:900px){.grid{grid-template-columns:1fr 1fr}}
+  label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  input,select,button{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2a2a2a;background:#0f0f0f;color:var(--text)}
+  input[type="file"]{padding:8px}
+  .row{display:grid;grid-template-columns:2fr .6fr .8fr auto;gap:8px;align-items:center}
+  .btn{display:inline-flex;align-items:center;justify-content:center;background:var(--accent);color:#000;font-weight:800;border:0;border-radius:10px;padding:10px 14px;cursor:pointer}
+  .btn.secondary{background:#222;color:#ddd;border:1px solid #333}
+  .muted{color:var(--muted)}
+  .items{display:grid;gap:8px;margin-top:8px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .right{display:flex;justify-content:flex-end;gap:8px}
+  .tip{background:#121212;border:1px solid #252525;padding:10px;border-radius:10px;margin-top:8px}
+  .danger{color:#ff8}
 </style>
 </head>
 <body>
-<div class="sheet">
-  <header>
-    <div class="logo" aria-hidden="true"></div>
+<div class="wrap">
+  <h1>NyxPay • Invoice Builder</h1>
+  <p class="muted">Pick your two JS files (web3 IIFE + SDK UMD). This builder will embed them as safe <code>data:</code> URLs in the downloadable invoice.</p>
+
+  <div class="card grid" style="margin-top:12px">
     <div>
-      <h1 id="title">Invoice</h1>
-      <div class="muted" id="subtitle"></div>
+      <div class="two">
+        <div><label>Merchant Name</label><input id="merchantName" placeholder="Nyx Consulting LLC" required></div>
+        <div><label>Merchant Email</label><input id="merchantEmail" placeholder="billing@nyx.co"></div>
+      </div>
+      <div class="two" style="margin-top:8px">
+        <div><label>Merchant Website</label><input id="merchantSite" placeholder="https://nyx.co"></div>
+        <div><label>Network</label>
+          <select id="network">
+            <option value="mainnet-beta">mainnet-beta</option>
+            <option value="devnet">devnet</option>
+          </select>
+        </div>
+      </div>
+      <div class="two" style="margin-top:8px">
+        <div><label>Customer Name</label><input id="customerName" placeholder="User B"></div>
+        <div><label>Customer Email</label><input id="customerEmail" placeholder="userb@example.com"></div>
+      </div>
+      <div class="three" style="margin-top:8px">
+        <div><label>Invoice #</label><input id="invNumber" placeholder="INV-2025-0012"></div>
+        <div><label>Date (ISO)</label><input id="invDate" placeholder="2025-08-13"></div>
+        <div><label>Due (ISO)</label><input id="invDue" placeholder="2025-08-20"></div>
+      </div>
+      <div class="two" style="margin-top:8px">
+        <div><label>Recipient Wallet (SOL)</label><input id="recipient" placeholder="YourRecipientPublicKeyHere" required></div>
+        <div><label>Fee/Adjustment (SOL)</label><input id="fee" type="number" step="0.000000001" value="0"></div>
+      </div>
+      <div style="margin-top:8px">
+        <label>Memo (optional)</label><input id="memo" placeholder="Consulting Services – July">
+      </div>
     </div>
-  </header>
 
-  <div id="runtimeWarn" class="warn" style="display:none"></div>
-
-  <div class="grid">
-    <div class="card"><div class="label">From</div><div id="from"></div></div>
-    <div class="card"><div class="label">Bill To</div><div id="to"></div></div>
-    <div class="card"><div class="label">Invoice Details</div><div id="meta"></div></div>
-    <div class="card"><div class="label">Pay To (SOL)</div><div><div class="muted" style="font-size:12px">Recipient</div><code id="recipient"></code></div></div>
+    <div>
+      <div>
+        <label>Solana Web3 IIFE (global)</label>
+        <input id="web3File" type="file" accept=".js" />
+      </div>
+      <div style="margin-top:8px">
+        <label>NyxPay SDK UMD (BN bundled)</label>
+        <input id="sdkFile" type="file" accept=".js" />
+      </div>
+      <div class="tip">
+        <div class="muted">Pick <code>@solana/web3.js/lib/index.iife.js</code> and your built <code>dist/nyxpay-pay-sdk.umd.js</code>.</div>
+      </div>
+    </div>
   </div>
 
-  <div style="padding:12px 24px 0">
-    <table id="items">
-      <thead><tr><th>Description</th><th style="width:120px">Qty</th><th style="width:160px">Unit (SOL)</th><th style="width:160px">Line (SOL)</th></tr></thead>
-      <tbody></tbody>
-      <tfoot>
-        <tr><td colspan="3" style="text-align:right">Subtotal</td><td id="subtotal">0</td></tr>
-        <tr><td colspan="3" style="text-align:right">Fees/Adj.</td><td id="fees">0</td></tr>
-        <tr><td colspan="3" class="total" style="text-align:right">Total (SOL)</td><td class="total" id="total">0</td></tr>
-      </tfoot>
-    </table>
+  <div class="card" style="margin-top:12px">
+    <label>Line Items</label>
+    <div id="items" class="items"></div>
+    <div class="right" style="margin-top:8px">
+      <button class="btn secondary" id="addItem" type="button">+ Add Item</button>
+      <button class="btn secondary" id="clearItems" type="button">Clear</button>
+    </div>
   </div>
 
-  <div class="actions">
-    <button id="connectBtn" class="btn" type="button">Connect Wallet</button>
-    <button id="payBtn"     class="btn" type="button" disabled>Pay Now</button>
-    <a id="explorerLink" class="btn" href="#" target="_blank" rel="noopener" style="display:none">View on Explorer</a>
+  <div class="right" style="margin-top:12px">
+    <button id="buildBtn" class="btn" type="button">Download Invoice HTML</button>
   </div>
 
-  <div class="note" id="status">Waiting…</div>
-  <footer class="muted" id="footer"></footer>
+  <p id="msg" class="muted" style="margin-top:10px"></p>
 </div>
 
-<!-- Load local libs (offline) -->
-<script src="./solana-web3.iife.js"></script>
-<script src="./nyxpay-pay-sdk.umd.js"></script>
-
 <script>
-/*** CONFIG — EDIT ME ***/
-const MERCHANT = { name: "Nyx Consulting LLC", email: "billing@nyx.co", website: "https://nyx.co" };
-const CUSTOMER = { name: "User B", email: "userb@example.com" };
-const RECIPIENT = { wallet: "YourRecipientPublicKeyHere" }; // <- set this
-const INVOICE  = {
-  number: "INV-2025-0012",
-  dateISO: "2025-08-13",
-  dueISO: "2025-08-20",
-  feeOrAdjustmentSOL: 0.00,
-  memo: "Consulting Services – July",
-  network: "mainnet-beta" // or "devnet"
-};
-const ITEMS = [
-  { desc: "Consulting - Strategy Session", qty: 2, unitSOL: 0.35 },
-  { desc: "Follow-up Report",              qty: 1, unitSOL: 0.10 }
-];
-/*** END CONFIG ***/
+(function(){
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const slug = s => String(s).trim().toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9\-]/g,'');
+  const isAddr = s => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
+  const to9 = n => Math.round(Number(n||0)*1e9)/1e9;
 
-const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-const fmt = n => (Math.round(Number(n) * 1e9) / 1e9).toFixed(9).replace(/0+$/,'').replace(/\.$/,'');
-const isAddr = s => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
+  // read a File as a data: URL (base64) — perfect for <script src="data:...">
+  function readAsDataURL(file){
+    return new Promise((res,rej)=>{
+      const r = new FileReader();
+      r.onerror = () => rej(r.error || new Error('read error'));
+      r.onload = () => res(String(r.result||''));
+      r.readAsDataURL(file);
+    });
+  }
 
-// Render static bits
-document.getElementById("title").textContent = `Invoice ${INVOICE.number}`;
-document.getElementById("subtitle").textContent = `${MERCHANT.name} • ${INVOICE.dateISO} • Due ${INVOICE.dueISO}`;
-document.getElementById("from").innerHTML = `<div>${esc(MERCHANT.name)}</div><div class="muted">${esc(MERCHANT.email)}</div><div class="muted">${esc(MERCHANT.website)}</div>`;
-document.getElementById("to").innerHTML   = `<div>${esc(CUSTOMER.name)}</div><div class="muted">${esc(CUSTOMER.email)}</div>`;
-document.getElementById("meta").innerHTML = `<div><strong>Number:</strong> ${esc(INVOICE.number)}</div><div><strong>Date:</strong> ${esc(INVOICE.dateISO)}</div><div><strong>Due:</strong> ${esc(INVOICE.dueISO)}</div>`;
-document.getElementById("recipient").textContent = RECIPIENT.wallet;
-document.getElementById("footer").textContent = `© ${new Date().getFullYear()} ${MERCHANT.name}`;
+  // items UI
+  const itemsEl = $('items');
+  function addItem(desc='', qty=1, unit=0){
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = '<input placeholder="Description" value="'+esc(desc)+'">'
+                  + '<input type="number" step="1" min="0" placeholder="Qty" value="'+qty+'">'
+                  + '<input type="number" step="0.000000001" min="0" placeholder="Unit (SOL)" value="'+unit+'">'
+                  + '<button class="btn secondary" type="button">✕</button>';
+    row.querySelector('button').onclick = () => row.remove();
+    itemsEl.appendChild(row);
+  }
+  $('addItem').onclick = () => addItem();
+  $('clearItems').onclick = () => { itemsEl.innerHTML=''; };
+  addItem('Consulting - Strategy Session', 2, 0.35);
+  addItem('Follow-up Report', 1, 0.10);
 
-// Compute totals
-const subtotal = ITEMS.reduce((s, it) => s + (Number(it.qty)||0)*(Number(it.unitSOL)||0), 0);
-const total = Math.max(0, Math.round((subtotal + Number(INVOICE.feeOrAdjustmentSOL||0)) * 1e9) / 1e9);
+  // Build button
+  $('buildBtn').onclick = async () => {
+    const msg = $('msg'); msg.textContent='';
 
-// Render table
-const tbody = document.querySelector("#items tbody");
-ITEMS.forEach(it=>{
-  const tr = document.createElement("tr");
-  tr.innerHTML = `<td>${esc(it.desc)}</td><td>${esc(it.qty)}</td><td>${fmt(it.unitSOL)}</td><td>${fmt((+it.qty||0)*(+it.unitSOL||0))}</td>`;
-  tbody.appendChild(tr);
-});
-document.getElementById("subtotal").textContent = fmt(subtotal);
-document.getElementById("fees").textContent     = fmt(INVOICE.feeOrAdjustmentSOL || 0);
-document.getElementById("total").textContent    = fmt(total);
+    const form = {
+      merchantName: $('merchantName').value.trim(),
+      merchantEmail: $('merchantEmail').value.trim(),
+      merchantSite: $('merchantSite').value.trim(),
+      customerName: $('customerName').value.trim(),
+      customerEmail: $('customerEmail').value.trim(),
+      invNumber: $('invNumber').value.trim(),
+      invDate: $('invDate').value.trim(),
+      invDue: $('invDue').value.trim(),
+      network: $('network').value,
+      recipient: $('recipient').value.trim(),
+      memo: $('memo').value.trim(),
+      fee: to9($('fee').value)
+    };
 
-// Runtime environment hints
-const warn = document.getElementById('runtimeWarn');
-if (location.protocol === 'file:') {
-  warn.style.display = '';
-  warn.textContent = 'Tip: Wallet extensions may be blocked on file:// pages. Either serve this file at http://localhost/... OR enable "Allow access to file URLs" for your wallet extension in chrome://extensions.';
-}
+    if (!form.merchantName) return msg.textContent = 'Merchant name is required.';
+    if (!isAddr(form.recipient)) return msg.textContent = 'Recipient wallet does not look valid.';
 
-// SDK init
-const status = document.getElementById('status');
-const explorerLink = document.getElementById('explorerLink');
-const connectBtn = document.getElementById('connectBtn');
-const payBtn = document.getElementById('payBtn');
+    const items = Array.from(itemsEl.children).map(row=>{
+      const ins = row.querySelectorAll('input');
+      return { desc: ins[0].value.trim(), qty: Number(ins[1].value||0), unit: Number(ins[2].value||0) };
+    }).filter(it=>it.desc && it.qty>0 && it.unit>=0);
 
-(function boot(){
-  if (!window.solanaWeb3) { status.textContent = 'solanaWeb3 missing (check solana-web3.iife.js)'; return; }
-  const SDK = window.nyxpayPaySDK || window.NyxPaySDK || window.nyxpay || window.NyxPay || null;
-  if (!SDK) { status.textContent = 'NyxPay SDK not found (check nyxpay-pay-sdk.umd.js)'; return; }
+    if (!items.length) return msg.textContent='Add at least one line item.';
 
-  const { PaymentProcessor, PhantomAdapter } = SDK;
-  const sdk = new PaymentProcessor({ network: INVOICE.network, commitment: 'confirmed' });
-  sdk.setWalletAdapter(new PhantomAdapter());
+    const subtotal = items.reduce((s,it)=>s+(Number(it.qty)||0)*(Number(it.unit)||0),0);
+    const total = Math.max(0, to9(subtotal + (form.fee||0)));
 
-  connectBtn.onclick = async () => {
-    try {
-      status.textContent = 'Connecting wallet…';
-      await sdk.init();
-      await sdk.connectWallet();
-      payBtn.disabled = false;
-      status.textContent = 'Wallet connected. Ready to pay.';
-    } catch (e) {
-      status.textContent = 'Failed to connect wallet: ' + (e && e.message ? e.message : e);
-    }
-  };
+    const web3F = $('web3File').files[0];
+    const sdkF  = $('sdkFile').files[0];
+    if (!web3F) return msg.textContent='Choose your Solana Web3 IIFE file.';
+    if (!sdkF)  return msg.textContent='Choose your NyxPay SDK UMD file.';
 
-  payBtn.onclick = async () => {
-    if (payBtn.disabled) return;
-    if (!isAddr(RECIPIENT.wallet)) { alert('Recipient address looks invalid.'); return; }
-    payBtn.disabled = true;
-    status.textContent = 'Sending payment…';
-    try {
-      const result = await sdk.sendTokens({
-        recipient: RECIPIENT.wallet,
-        amount: total,
-        tokenMint: 'SOL',
-        memo: INVOICE.memo || INVOICE.number
-      });
-      const url = (result && result.explorerUrl) ? result.explorerUrl : '#';
-      status.textContent = '✅ Payment sent!';
-      explorerLink.href = url;
-      explorerLink.style.display = 'inline-block';
-    } catch (e) {
-      status.textContent = '❌ Payment failed: ' + (e && e.message ? e.message : e);
-      payBtn.disabled = false;
+    try{
+      // Read both libraries as data URLs
+      const [web3Src, sdkSrc] = await Promise.all([readAsDataURL(web3F), readAsDataURL(sdkF)]);
+
+      // Build a tiny app JS and turn it into a data URL too — no inline <script> text needed.
+      var appJs = '';
+      appJs += '(function(){\\n';
+      appJs += '  var status=document.getElementById(\"status\"), explorer=document.getElementById(\"explorerLink\");\\n';
+      appJs += '  if(!window.solanaWeb3){status.textContent=\"solanaWeb3 missing\";return;}\\n';
+      appJs += '  var SDK=window.nyxpayPaySDK||window.NyxPaySDK||window.nyxpay||window.NyxPay||null;\\n';
+      appJs += '  if(!SDK){status.textContent=\"NyxPay SDK missing\";return;}\\n';
+      appJs += '  var PaymentProcessor=SDK.PaymentProcessor, PhantomAdapter=SDK.PhantomAdapter;\\n';
+      appJs += '  var sdk=new PaymentProcessor({ network:'+JSON.stringify(form.network)+', commitment:\"confirmed\" });\\n';
+      appJs += '  sdk.setWalletAdapter(new PhantomAdapter());\\n';
+      appJs += '  var connectBtn=document.getElementById(\"connectBtn\"), payBtn=document.getElementById(\"payBtn\");\\n';
+      appJs += '  var RECIPIENT='+JSON.stringify(form.recipient)+', TOTAL='+total+', MEMO='+JSON.stringify(form.memo || (form.merchantName+\" • \"+(form.invNumber||\"Invoice\")))+';\\n';
+      appJs += '  connectBtn.onclick=async function(){ try{ status.textContent=\"Connecting wallet…\"; await sdk.init(); await sdk.connectWallet(); payBtn.disabled=false; status.textContent=\"Wallet connected. Ready to pay.\"; }catch(e){ status.textContent=\"Failed to connect wallet: \"+(e&&e.message?e.message:e);} };\\n';
+      appJs += '  payBtn.onclick=async function(){ if(payBtn.disabled) return; payBtn.disabled=true; status.textContent=\"Sending payment…\"; try{ var res=await sdk.sendTokens({ recipient:RECIPIENT, amount:TOTAL, tokenMint:\"SOL\", memo:MEMO }); var url=(res&&res.explorerUrl)?res.explorerUrl:\"#\"; status.textContent=\"✅ Payment sent!\"; explorer.href=url; explorer.style.display=\"inline-block\"; }catch(e){ status.textContent=\"❌ Payment failed: \"+(e&&e.message?e.message:e); payBtn.disabled=false; } };\\n';
+      appJs += '})();\\n';
+
+      var appSrc = 'data:text/javascript;charset=utf-8,' + encodeURIComponent(appJs);
+
+      // Build the invoice HTML with placeholders → then simple .replace
+      var title = 'Invoice '+(form.invNumber||'');
+      var labelLine = esc(form.merchantName)+' • '+esc(form.invDate||'')+' • Due '+esc(form.invDue||'');
+      function nf(n){ return (Math.round(Number(n)*1e9)/1e9).toFixed(9).replace(/0+$/,'').replace(/\.$/,''); }
+
+      var html = '';
+      html += '<!DOCTYPE html><html lang=\"en\"><head>';
+      html += '<meta charset=\"UTF-8\"/><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"/>';
+      html += '<title>'+title+'</title>';
+      html += '<style>';
+      html += ':root{--bg:#0a0a0a;--panel:#161616;--text:#f5f5f5;--muted:#bdbdbd;--accent:#FEB02E}';
+      html += '*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,Segoe UI,Roboto,sans-serif;padding:24px;text-align:center}';
+      html += '.sheet{max-width:760px;margin:0 auto;background:var(--panel);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.45);overflow:hidden}';
+      html += 'header,footer{padding:20px 24px} header{display:flex;gap:16px;align-items:center;border-bottom:1px solid #222}';
+      html += '.logo{width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#FFD86F,#FEB02E)}';
+      html += 'h1{margin:0;font-size:18px}.muted{color:var(--muted)}';
+      html += '.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:20px 24px;border-bottom:1px solid #222}';
+      html += '.card{background:#111;border:1px solid #222;border-radius:10px;padding:14px}';
+      html += '.label{font-size:12px;letter-spacing:.04em;color:var(--muted);text-transform:uppercase;margin-bottom:6px}';
+      html += 'table{width:100%;border-collapse:collapse} th,td{padding:10px;border-bottom:1px solid #222;text-align:left}';
+      html += 'tfoot td{border-top:2px solid #333;font-weight:700}.total{font-size:18px}';
+      html += '.btn{display:inline-block;background:var(--accent);color:#000;padding:12px 16px;border-radius:9px;font-weight:800;text-decoration:none;margin:10px 6px 0;cursor:pointer;border:0}';
+      html += 'code{background:#111;border:1px solid #222;padding:6px 8px;border-radius:8px;word-break:break-all}';
+      html += '.note{padding:0 24px 20px;color:var(--muted);font-size:14px}';
+      html += '.warn{background:#2a1f00;border:1px solid #4d3a00;color:#ffd571;padding:10px 12px;border-radius:8px;margin:16px 24px}';
+      html += '</style></head><body>';
+      html += '<div class=\"sheet\"><header><div class=\"logo\" aria-hidden=\"true\"></div><div>';
+      html += '<h1>'+('Invoice '+esc(form.invNumber||''))+'</h1><div class=\"muted\">'+labelLine+'</div>';
+      html += '</div></header>';
+      html += '<div id=\"runtimeWarn\" class=\"warn\" style=\"display:none\"></div>';
+      html += '<div class=\"grid\">';
+      html += '<div class=\"card\"><div class=\"label\">From</div><div>'+esc(form.merchantName)+'<div class=\"muted\">'+esc(form.merchantEmail||'')+'</div><div class=\"muted\">'+esc(form.merchantSite||'')+'</div></div></div>';
+      html += '<div class=\"card\"><div class=\"label\">Bill To</div><div>'+esc(form.customerName||'')+'<div class=\"muted\">'+esc(form.customerEmail||'')+'</div></div></div>';
+      html += '<div class=\"card\"><div class=\"label\">Invoice Details</div>'
+           +  '<div><strong>Number:</strong> '+esc(form.invNumber||'')+'</div>'
+           +  '<div><strong>Date:</strong> '+esc(form.invDate||'')+'</div>'
+           +  '<div><strong>Due:</strong> '+esc(form.invDue||'')+'</div></div>';
+      html += '<div class=\"card\"><div class=\"label\">Pay To (SOL)</div><div><div class=\"muted\" style=\"font-size:12px\">Recipient</div><code id=\"recipient\">'+esc(form.recipient)+'</code></div></div>';
+      html += '</div>';
+
+      html += '<div style=\"padding:12px 24px 0\"><table><thead><tr><th>Description</th><th style=\"width:120px\">Qty</th><th style=\"width:160px\">Unit (SOL)</th><th style=\"width:160px\">Line (SOL)</th></tr></thead><tbody>';
+      for(var i=0;i<items.length;i++){
+        var it=items[i]; var line=(Number(it.qty)||0)*(Number(it.unit)||0);
+        html += '<tr><td>'+esc(it.desc)+'</td><td>'+esc(it.qty)+'</td><td>'+nf(it.unit)+'</td><td>'+nf(line)+'</td></tr>';
+      }
+      html += '</tbody><tfoot>'
+           +  '<tr><td colspan=\"3\" style=\"text-align:right\">Subtotal</td><td>'+nf(subtotal)+'</td></tr>'
+           +  '<tr><td colspan=\"3\" style=\"text-align:right\">Fees/Adj.</td><td>'+nf(form.fee||0)+'</td></tr>'
+           +  '<tr><td colspan=\"3\" class=\"total\" style=\"text-align:right\">Total (SOL)</td><td class=\"total\">'+nf(total)+'</td></tr>'
+           +  '</tfoot></table></div>';
+
+      html += '<div style=\"padding:20px 24px\">'
+           +  '<button id=\"connectBtn\" class=\"btn\" type=\"button\">Connect Wallet</button>'
+           +  '<button id=\"payBtn\" class=\"btn\" type=\"button\" disabled>Pay Now</button>'
+           +  '<a id=\"explorerLink\" class=\"btn\" href=\"#\" target=\"_blank\" rel=\"noopener\" style=\"display:none\">View on Explorer</a>'
+           +  '</div>';
+      html += '<div class=\"note\" id=\"status\">Waiting…</div>';
+      html += '<footer class=\"muted\">© '+(new Date().getFullYear())+' '+esc(form.merchantName)+'</footer>';
+      html += '</div>';
+
+      // include scripts via data URLs (no inline <script> content)
+      html += '<script src=\"{{WEB3_SRC}}\"></script>';
+      html += '<script src=\"{{SDK_SRC}}\"></script>';
+      html += '<script src=\"{{APP_SRC}}\"></script>';
+
+      html += '<script>(function(){ if(location.protocol===\"file:\"){ var w=document.getElementById(\"runtimeWarn\"); if(w){ w.style.display=\"\"; w.textContent=\"Tip: wallet extensions may be blocked on file://. Serve at http://localhost or enable \\\"Allow access to file URLs\\\" in chrome://extensions.\"; } } })();</script>';
+
+      html += '</body></html>';
+
+      html = html.replace('{{WEB3_SRC}}', web3Src)
+                 .replace('{{SDK_SRC}}',  sdkSrc)
+                 .replace('{{APP_SRC}}',  appSrc);
+
+      var blob = new Blob([html], {type:'text/html'});
+      var url  = URL.createObjectURL(blob);
+      var filename = 'nyxpay-invoice-'+slug(form.invNumber || form.merchantName || 'invoice')+'.html';
+
+      var a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 0);
+      msg.textContent = 'Invoice downloaded. Send that single HTML to your customer.';
+    }catch(e){
+      msg.innerHTML = '<span class="danger">Failed to build invoice: '+esc(e && e.message ? e.message : e)+'</span>';
     }
   };
 })();

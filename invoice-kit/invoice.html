@@ -1,79 +1,241 @@
-<!DOCTYPE html><html lang="en"><head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>NyxPay Invoice</title>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>nyx-local • Minimal Builder</title>
 <style>
-  body{margin:0;background:#0a0a0a;color:#f5f5f5;font:16px/1.45 system-ui,Segoe UI,Roboto,sans-serif;padding:24px;text-align:center}
-  .card{max-width:640px;margin:0 auto;background:#161616;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.45);padding:24px}
-  .btn{background:#FEB02E;color:#000;padding:12px 16px;border-radius:9px;font-weight:800;border:0;cursor:pointer;margin:6px}
-  code{background:#111;border:1px solid #222;padding:6px 8px;border-radius:8px;word-break:break-all}
+  :root{--bg:#0a0a0a;--panel:#161616;--text:#f5f5f5;--muted:#bdbdbd;--accent:#FEB02E}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,Segoe UI,Roboto,sans-serif;padding:24px}
+  .wrap{max-width:760px;margin:0 auto}
+  h1{margin:0 0 10px;font-size:20px} label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .card{background:var(--panel);border-radius:12px;padding:16px;border:1px solid #222;margin-top:12px}
+  input,select,button{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2a2a2a;background:#0f0f0f;color:var(--text)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .btn{background:var(--accent);color:#000;font-weight:800;border:0;border-radius:10px;padding:10px 14px;cursor:pointer}
+  .muted{color:var(--muted)} .danger{color:#ffd571}
 </style>
-</head><body>
-<div class="card">
-  <h1>NyxPay Invoice</h1>
-  <p id="details"></p>
-  <p>Pay to: <code id="recipient"></code></p>
-  <div>
-    <button id="connect" class="btn">Connect Wallet</button>
-    <button id="pay" class="btn" disabled>Pay Now</button>
-    <a id="explorer" class="btn" href="#" target="_blank" rel="noopener" style="display:none">View on Explorer</a>
+</head>
+<body>
+<div class="wrap">
+  <h1>nyx-local • Minimal Builder</h1>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label>Network</label>
+        <select id="network">
+          <option value="devnet" selected>devnet</option>
+          <option value="mainnet-beta">mainnet-beta</option>
+        </select>
+      </div>
+      <div>
+        <label>Amount (SOL)</label>
+        <input id="amount" type="number" step="0.000000001" value="0.10"/>
+      </div>
+    </div>
+
+    <div style="margin-top:8px">
+      <label>Recipient (SOL address)</label>
+      <input id="recipient" placeholder="RecipientPublicKey" />
+    </div>
+
+    <div class="row" style="margin-top:8px">
+      <div>
+        <label>Memo (optional)</label>
+        <input id="memo" placeholder="Payment for X"/>
+      </div>
+      <div>
+        <label>Output file name</label>
+        <input id="filename" placeholder="payment" value="payment"/>
+      </div>
+    </div>
   </div>
-  <p id="status">Waiting…</p>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label>Solana web3 IIFE (local file)</label>
+        <input id="web3File" type="file" accept=".js"/>
+      </div>
+      <div>
+        <label>NyxPay SDK UMD (local file)</label>
+        <input id="sdkFile" type="file" accept=".js"/>
+      </div>
+    </div>
+    <p class="muted" style="margin-top:8px">
+      Use <code>@solana/web3.js/lib/index.iife.js</code> and your built <code>nyxpay-pay-sdk.umd.js</code>. They will be embedded as <code>data:</code> URLs.
+    </p>
+  </div>
+
+  <div class="card">
+    <button id="build" class="btn" type="button">Download Checkout (.html)</button>
+    <p id="msg" class="muted" style="margin-top:8px"></p>
+  </div>
 </div>
 
-<!-- local libs (keep these files next to this HTML) -->
-<script src="./solana-web3.iife.js"></script>
-<script src="./nyxpay-pay-sdk.umd.js"></script>
 <script>
-// --- CONFIG --- edit these three values:
-const NETWORK   = "devnet";                  // or "mainnet-beta"
-const RECIPIENT = "YourRecipientPublicKey";  // <-- put your address here
-const AMOUNT    = 0.25;                      // SOL
+(function(){
+  const $ = id => document.getElementById(id);
+  const msg = $('msg');
+  const isAddr = s => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(String(s||''));
 
-// --- UI ---
-document.getElementById('details').textContent = `Amount: ${AMOUNT} SOL • Network: ${NETWORK}`;
-document.getElementById('recipient').textContent = RECIPIENT;
+  function readAsDataURL(file){
+    return new Promise((res,rej)=>{
+      const r=new FileReader();
+      r.onerror=()=>rej(r.error||new Error('read error'));
+      r.onload =()=>res(String(r.result||'')); // data:... base64
+      r.readAsDataURL(file);
+    });
+  }
 
-// --- Bootstrap SDK (browser extension flow) ---
-const statusEl   = document.getElementById('status');
-const connectBtn = document.getElementById('connect');
-const payBtn     = document.getElementById('pay');
-const explorer   = document.getElementById('explorer');
+  function jsDataURL(code){
+    const enc = new TextEncoder().encode(code);
+    let bin=''; for(let i=0;i<enc.length;i++) bin+=String.fromCharCode(enc[i]);
+    return 'data:text/javascript;base64,' + btoa(bin);
+  }
 
-(function () {
-  if (!window.solanaWeb3) { statusEl.textContent = 'solanaWeb3 missing (check solana-web3.iife.js)'; return; }
-  const SDK = window.nyxpayPaySDK || window.NyxPaySDK || window.nyxpay || window.NyxPay || null;
-  if (!SDK) { statusEl.textContent = 'NyxPay SDK missing (check nyxpay-pay-sdk.umd.js)'; return; }
+  function buildCheckoutHTML(opts){
+    const doc = document.implementation.createHTMLDocument('nyx-local • Pay');
+    const meta1 = doc.createElement('meta'); meta1.setAttribute('charset','UTF-8');
+    const meta2 = doc.createElement('meta'); meta2.setAttribute('name','viewport'); meta2.setAttribute('content','width=device-width,initial-scale=1');
+    const title = doc.createElement('title'); title.textContent = 'nyx-local • Checkout';
+    const style = doc.createElement('style'); style.textContent =
+      ':root{--bg:#0a0a0a;--panel:#161616;--text:#f5f5f5;--muted:#bdbdbd;--accent:#FEB02E}'
+     +'*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,Segoe UI,Roboto,sans-serif;padding:24px}'
+     +'.sheet{max-width:560px;margin:0 auto;background:var(--panel);border-radius:12px;border:1px solid #222;overflow:hidden}'
+     +'header,footer{padding:16px 18px;border-bottom:1px solid #222}footer{border:0;color:var(--muted)}'
+     +'.row{display:flex;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid #222}'
+     +'.btn{display:inline-block;background:var(--accent);color:#000;padding:10px 14px;border-radius:9px;font-weight:800;border:0;cursor:pointer;margin-right:8px}'
+     +'.muted{color:var(--muted)}';
+    doc.head.append(meta1, meta2, title, style);
 
-  const { PaymentProcessor, PhantomAdapter } = SDK;
-  const sdk = new PaymentProcessor({ network: NETWORK, commitment: 'confirmed' });
-  sdk.setWalletAdapter(new PhantomAdapter());
+    const sheet = doc.createElement('div'); sheet.className = 'sheet';
+    sheet.innerHTML =
+      '<header><div><strong>nyx-local • Checkout</strong></div><div class="muted" id="subtitle"></div></header>'
+     +'<div class="row"><div>Recipient</div><code id="rcpt"></code></div>'
+     +'<div class="row"><div>Total (SOL)</div><div id="amt"></div></div>'
+     +'<div class="row"><div class="muted">Network</div><div id="net"></div></div>'
+     +'<div class="row" style="display:block">'
+     +  '<button id="connect" class="btn" type="button">Connect Wallet</button>'
+     +  '<button id="pay" class="btn" type="button" disabled>Pay</button>'
+     +  '<a id="explorer" class="btn" href="#" target="_blank" rel="noopener" style="display:none">Explorer</a>'
+     +  '<div id="status" class="muted" style="margin-top:8px">Waiting…</div>'
+     +'</div>'
+     +'<footer>© ' + new Date().getFullYear() + ' nyx-local</footer>';
+    doc.body.appendChild(sheet);
 
-  connectBtn.onclick = async () => {
-    try {
-      statusEl.textContent = 'Connecting wallet…';
-      await sdk.init();
-      await sdk.connectWallet();
-      payBtn.disabled = false;
-      statusEl.textContent = 'Wallet connected. Ready to pay.';
-    } catch (e) {
-      statusEl.textContent = 'Failed to connect wallet: ' + (e && e.message ? e.message : e);
-    }
-  };
+    // embed libs as data URLs
+    const s1 = doc.createElement('script'); s1.src = opts.web3Src; doc.body.appendChild(s1);
+    const s2 = doc.createElement('script'); s2.src = opts.sdkSrc;  doc.body.appendChild(s2);
 
-  payBtn.onclick = async () => {
-    try {
+    // runtime app
+    const sApp = doc.createElement('script'); sApp.src = opts.appSrc; doc.body.appendChild(sApp);
+
+    return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+  }
+
+  // Code that runs inside the generated checkout file (no backticks, no template strings)
+  function appRuntime(cfg){
+    function fmt(n){ return (Math.round(Number(n)*1e9)/1e9).toFixed(9).replace(/0+$/,'').replace(/\.$/,''); }
+    var subtitle = document.getElementById("subtitle");
+    var rcpt = document.getElementById("rcpt");
+    var amt = document.getElementById("amt");
+    var net = document.getElementById("net");
+    var connectBtn = document.getElementById("connect");
+    var payBtn = document.getElementById("pay");
+    var status = document.getElementById("status");
+    var explorer = document.getElementById("explorer");
+
+    subtitle.textContent = (cfg.memo ? cfg.memo + " • " : "") + "Payment";
+    rcpt.textContent = cfg.recipient;
+    amt.textContent = fmt(cfg.amountSOL);
+    net.textContent = cfg.network;
+
+    if (!window.solanaWeb3) { status.textContent = "solanaWeb3 missing"; connectBtn.disabled = payBtn.disabled = true; return; }
+    var SDK = window.nyxpayPaySDK || window.NyxPaySDK || window.nyxpay || window.NyxPay || null;
+    if (!SDK) { status.textContent = "NyxPay SDK not found"; connectBtn.disabled = payBtn.disabled = true; return; }
+
+    var PaymentProcessor = SDK.PaymentProcessor;
+    var PhantomAdapter  = SDK.PhantomAdapter;
+    var sdk = new PaymentProcessor({ network: cfg.network, commitment: "confirmed" });
+    sdk.setWalletAdapter(new PhantomAdapter());
+
+    connectBtn.onclick = function(){
+      status.textContent = "Connecting wallet…";
+      sdk.init().then(function(){
+        return sdk.connectWallet();
+      }).then(function(){
+        status.textContent = "Wallet connected. Ready to pay.";
+        payBtn.disabled = false;
+      }).catch(function(e){
+        status.textContent = "Failed to connect: " + (e && e.message ? e.message : e);
+      });
+    };
+
+    payBtn.onclick = function(){
+      if (payBtn.disabled) return;
       payBtn.disabled = true;
-      statusEl.textContent = 'Sending payment…';
-      const res = await sdk.sendTokens({ recipient: RECIPIENT, amount: AMOUNT, tokenMint: 'SOL', memo: 'Invoice' });
-      const url = (res && res.explorerUrl) ? res.explorerUrl : '#';
-      explorer.href = url;
-      explorer.style.display = 'inline-block';
-      statusEl.textContent = '✅ Payment sent!';
-    } catch (e) {
-      statusEl.textContent = '❌ Payment failed: ' + (e && e.message ? e.message : e);
-      payBtn.disabled = false;
+      status.textContent = "Sending payment…";
+      sdk.sendTokens({
+        recipient: cfg.recipient,
+        amount: cfg.amountSOL,   // SOL units
+        tokenMint: "SOL",
+        memo: cfg.memo || ""
+      }).then(function(res){
+        status.textContent = "✅ Payment sent!";
+        if (res && res.explorerUrl) {
+          var url = res.explorerUrl;
+          if (cfg.network === "devnet") {
+            url = url.indexOf("cluster=") >= 0 ? url.replace(/cluster=[^&]+/,"cluster=devnet")
+                                               : url + (url.indexOf("?")>=0?"&":"?") + "cluster=devnet";
+          }
+          explorer.href = url; explorer.style.display = "inline-block";
+        }
+      }).catch(function(e){
+        status.textContent = "❌ Payment failed: " + (e && e.message ? e.message : e);
+        payBtn.disabled = false;
+      });
+    };
+
+    if (location.protocol === "file:") {
+      status.textContent = "Note: some wallets block file:// pages. If buttons do nothing, serve via http://localhost or enable 'Allow access to file URLs' in your wallet extension.";
+    }
+  }
+
+  $('build').onclick = async () => {
+    msg.textContent = "";
+    const network   = $('network').value;
+    const recipient = $('recipient').value.trim();
+    const amount    = Number($('amount').value || 0);
+    const memo      = $('memo').value.trim();
+    const name      = ($('filename').value || 'payment').trim();
+
+    if (!isAddr(recipient)) { msg.innerHTML = '<span class="danger">Invalid recipient address.</span>'; return; }
+    if (!['devnet','mainnet-beta'].includes(network)) { msg.innerHTML = '<span class="danger">Invalid network.</span>'; return; }
+    if (!(amount > 0)) { msg.innerHTML = '<span class="danger">Amount must be > 0.</span>'; return; }
+
+    const web3F = $('web3File').files[0];
+    const sdkF  = $('sdkFile').files[0];
+    if (!web3F) { msg.innerHTML = '<span class="danger">Choose Solana web3 IIFE.</span>'; return; }
+    if (!sdkF)  { msg.innerHTML = '<span class="danger">Choose NyxPay SDK UMD.</span>'; return; }
+
+    try{
+      const [web3Src, sdkSrc] = await Promise.all([readAsDataURL(web3F), readAsDataURL(sdkF)]);
+      const cfg = { network: network, recipient: recipient, amountSOL: Math.round(amount*1e9)/1e9, memo: memo };
+      const runtime = '(' + appRuntime.toString() + ')(' + JSON.stringify(cfg) + ');';
+      const appSrc = jsDataURL(runtime);
+
+      const html = buildCheckoutHTML({ web3Src, sdkSrc, appSrc });
+      const blob = new Blob([html], {type:'text/html'}), url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = (name || 'payment') + '.html'; a.click();
+      setTimeout(()=>URL.revokeObjectURL(url), 0);
+      msg.textContent = 'Done. Checkout downloaded.';
+    }catch(e){
+      msg.innerHTML = '<span class="danger">Build failed: ' + (e && e.message ? e.message : e) + '</span>';
     }
   };
 })();
 </script>
-</body></html>
+</body>
+</html>
