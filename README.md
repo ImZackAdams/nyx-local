@@ -1,8 +1,6 @@
 # nyx-local
 
-**An HTML file is the transport layer.**  
-
-You're not sending a payment request or invoice. **You're sending the entire fucking payment processor.**
+You're not sending a payment request or invoice. **You're sending the entire payment processor in an index.html file**
 
 Client side compute. All logic is executed on your local machine (if you want).  
 Decentralized via the filesystem. No domain, no DNS, no cloud. Just open the file and go.  
@@ -79,6 +77,7 @@ The browser is the runtime.
 The filesystem is your storage.  
 The blockchain is your server.  
 We already had distributed computing. We just called it the web.
+
 
 
 
